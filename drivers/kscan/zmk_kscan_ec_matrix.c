@@ -63,6 +63,11 @@ struct kscan_ec_matrix_data {
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_CALIBRATOR)
     zmk_kscan_ec_matrix_calibration_cb_t calibration_callback;
     const void *calibration_user_data;
+    zmk_kscan_ec_matrix_sample_cb_t sample_callback;
+    uint8_t sample_strobe;
+    uint8_t sample_input;
+    uint16_t sample_times;
+    const void *sample_user_data;
 #endif // IS_DEFINED(CONFIG_ZMK_KSCAN_EC_MATRIX_CALIBRATOR)
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
     uint64_t max_scan_duration_ns;
@@ -148,7 +153,7 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t strobe, 
 #endif
 
     // TODO: Only wait as long as is need after drain pin was set low.
-    if (cfg->matrix_relax_us > 0) {
+    if (cfg->matrix_relax_us) {
         k_busy_wait(cfg->matrix_relax_us);
     }
 
@@ -176,7 +181,10 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t strobe, 
     timing_t set_strobe_done = timing_counter_get();
 #endif
 
-    k_busy_wait(cfg->adc_read_settle_us);
+        k_busy_wait(4);
+    if (cfg->adc_read_settle_us) {
+        k_busy_wait(cfg->adc_read_settle_us);
+    }
 
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
     timing_t adc_read_settle_done = timing_counter_get();
@@ -357,7 +365,9 @@ void calibrate(const struct device *dev) {
                 }
 
                 // Set the high threshold to half the full range possible
-                uint16_t high_threshold = (1 << (cfg->adc_channel.resolution - 1));
+                // uint16_t high_threshold = calibration->avg_low + (3 * calibration->noise);
+                uint16_t high_threshold = calibration->avg_low + (((1 << (cfg->adc_channel.resolution - 1)) / 4));
+                // uint16_t high_threshold = (1 << (cfg->adc_channel.resolution - 1));
                 uint16_t high_check_val = read_raw_matrix_state(dev, s, i);
 
                 if (high_check_val < high_threshold) {
@@ -425,6 +435,7 @@ void calibrate(const struct device *dev) {
     data->calibration_user_data = NULL;
 }
 
+
 int zmk_kscan_ec_matrix_calibrate(const struct device *dev,
                                   zmk_kscan_ec_matrix_calibration_cb_t callback,
                                   const void *user_data) {
@@ -442,6 +453,57 @@ int zmk_kscan_ec_matrix_calibrate(const struct device *dev,
     k_mutex_unlock(&data->mutex);
 
     return 0;
+}
+
+int zmk_kscan_ec_matrix_sample(const struct device *dev,
+		uint8_t strobe,
+		uint8_t input,
+		uint16_t times,
+                                  zmk_kscan_ec_matrix_sample_cb_t callback,
+                                  const void *user_data) {
+    struct kscan_ec_matrix_data *data = dev->data;
+    const struct kscan_ec_matrix_config *cfg = dev->config;
+
+    if (strobe >= cfg->strobes_len || input >= cfg->inputs_len) {
+	    return -EINVAL;
+    }
+
+    int ret = k_mutex_lock(&data->mutex, K_SECONDS(1));
+
+    if (ret < 0) {
+        return -EAGAIN;
+    }
+
+    data->sample_callback = callback;
+    data->sample_user_data = user_data;
+    data->sample_strobe = strobe;
+    data->sample_input = input;
+    data->sample_times = times;
+
+    k_mutex_unlock(&data->mutex);
+
+    return 0;
+}
+
+static void run_sample(const struct device *dev) {
+    const struct kscan_ec_matrix_config *cfg = dev->config;
+    struct kscan_ec_matrix_data *data = dev->data;
+
+    if (cfg->power.port) {
+        gpio_pin_set_dt(&cfg->power, 1);
+        k_busy_wait(cfg->matrix_warm_up_us);
+    }
+
+    for (int i = 0; i < data->sample_times; i++) {
+            uint16_t buf = read_raw_matrix_state(dev, data->sample_strobe, data->sample_input);
+	    data->sample_callback(buf, data->sample_user_data);
+	    k_sleep(K_SECONDS(1));
+    }
+    data->sample_callback = NULL;
+
+    if (cfg->power.port) {
+        gpio_pin_set_dt(&cfg->power, 0);
+    }
 }
 
 #endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_CALIBRATOR)
@@ -509,8 +571,10 @@ static void kscan_ec_matrix_read(const struct device *dev) {
                                                calibration->avg_high);
 
             if (buf > press_limit && !prev) {
+		LOG_DBG("%d,%d is active with %d versus %d - %d", s, r, buf, release_limit, press_limit);
                 WRITE_BIT(rows[s], r, 1);
             } else if (prev && buf < release_limit) {
+		LOG_DBG("%d,%d is released with %d versus %d - %d", s, r, buf, release_limit, press_limit);
                 WRITE_BIT(rows[s], r, 0);
             } else {
                 WRITE_BIT(rows[s], r, prev);
@@ -649,8 +713,12 @@ static void kscan_ec_matrix_thread_main(void *arg1, void *unused1, void *unused2
         k_mutex_lock(&data->mutex, K_FOREVER);
 
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_CALIBRATOR)
-        if (data->calibration_callback) {
-            calibrate(dev);
+        if (data->calibration_callback || data->sample_callback) {
+            if (data->calibration_callback) {
+                calibrate(dev);
+            } else if (data->sample_callback) {
+                run_sample(dev);
+            }
 #else
         if (false) {
 #endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_CALIBRATOR)

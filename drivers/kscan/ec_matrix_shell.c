@@ -6,6 +6,7 @@
 
 #include <ctype.h>
 #include <stdlib.h>
+#include <string.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/shell/shell.h>
@@ -21,6 +22,7 @@
 LOG_MODULE_REGISTER(ec_matrix_shell);
 
 #define CMD_HELP_SCAN_RATE "Print EC Scan Rate.\n"
+#define CMD_HELP_SAMPLE "Sample a specific position.\n"
 #define CMD_HELP_READ_TIMING "Print EC Read Timing.\n"
 #define CMD_HELP_CALIBRATE "EC Calibration Utilities.\n"
 #define CMD_HELP_CALIBRATION_START "Calibrate the EC Martix.\n"
@@ -104,6 +106,36 @@ static int cmd_matrix_calibration_start(const struct shell *shell, size_t argc, 
     int ret = zmk_kscan_ec_matrix_calibrate(matrix->dev, &calibrate_cb, shell);
     if (ret < 0) {
         shell_print(shell, "Failed to start calibration (%d)", ret);
+    }
+
+    return ret;
+}
+
+static void sample_cb(uint16_t val,
+                         const void *user_data) {
+    const struct shell *sh = (const struct shell *)user_data;
+
+    shell_print(sh, "Val: %d", val);
+}
+
+static int cmd_matrix_sample(const struct shell *shell, size_t argc, char **argv,
+                                         void *data) {
+    /* -2: index of ADC label name */
+    struct matrix_hdl *matrix = get_matrix(argv[-1]);
+    uint8_t strobe;
+    uint8_t input;
+    uint16_t times;
+
+    strobe = strtol(argv[1], NULL, 10);
+    input = strtol(argv[2], NULL, 10);
+
+    times = (argc == 4) ? strtol(argv[3], NULL, 10) : 10;
+
+    shell_print(shell, "Got a sample for %d,%d with %d times", strobe, input, times);
+
+    int ret = zmk_kscan_ec_matrix_sample(matrix->dev, strobe, input, times, &sample_cb, shell);
+    if (ret < 0) {
+        shell_print(shell, "Failed to start sampling (%d)", ret);
     }
 
     return ret;
@@ -227,6 +259,7 @@ SHELL_STATIC_SUBCMD_SET_CREATE(
     sub_matrix_cmds,
     /* Alphabetically sorted. */
     SHELL_CMD(calibration, &sub_matrix_calibration_cmds, CMD_HELP_CALIBRATE, NULL),
+    SHELL_CMD_ARG(sample, NULL, CMD_HELP_SAMPLE, cmd_matrix_sample, 2, 3),
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
     SHELL_CMD(scan_rate, NULL, CMD_HELP_SCAN_RATE, cmd_matrix_scan_rate),
 #endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
