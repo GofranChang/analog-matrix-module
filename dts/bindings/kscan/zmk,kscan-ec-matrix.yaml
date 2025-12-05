@@ -5,32 +5,11 @@ description: GPIO keyboard demux controller
 
 compatible: "zmk,kscan-ec-matrix"
 
-include: [kscan.yaml, pinctrl-device.yaml]
+include: ["zmk,kscan-analog-matrix.yaml", pinctrl-device.yaml]
 
 properties:
-  trigger-percentage:
-    type: int
-    default: 50
-    description: Pressed threshold as a percentage of the full range, where 0% is not pressed at all and 100% is pressed fully.
   skip-startup-calibration:
     type: boolean
-  active-polling-interval-ms:
-    type: int
-    default: 1
-  idle-polling-interval-ms:
-    type: int
-    default: 50
-  sleep-polling-interval-ms:
-    type: int
-    default: 200
-  dynamic-polling-interval:
-    type: boolean
-  idle-after-secs:
-    type: int
-    default: 5
-  sleep-after-secs:
-    type: int
-    default: 300
   matrix-warm-up-us:
     type: int
   matrix-relax-us:
@@ -52,12 +31,6 @@ properties:
     type: phandle-array
   io-channels:
     required: true
-  precalib-avg-lows:
-    type: array
-    description: Pre-seeded avg low calibration values
-  precalib-avg-highs:
-    type: array
-    description: Pre-seeded avg high calibration values
   
   pinctrl-0:
     required: false

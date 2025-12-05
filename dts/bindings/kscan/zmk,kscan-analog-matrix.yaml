@@ -1,0 +1,35 @@
+# Copyright (c) 2020, The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: Base analog matrix device
+
+include: [kscan.yaml]
+
+properties:
+  trigger-percentage:
+    type: int
+    default: 50
+    description: Pressed threshold as a percentage of the full range, where 0% is not pressed at all and 100% is pressed fully.
+  active-polling-interval-ms:
+    type: int
+    default: 1
+  idle-polling-interval-ms:
+    type: int
+    default: 50
+  sleep-polling-interval-ms:
+    type: int
+    default: 200
+  dynamic-polling-interval:
+    type: boolean
+  idle-after-secs:
+    type: int
+    default: 5
+  sleep-after-secs:
+    type: int
+    default: 300
+  precalib-avg-lows:
+    type: array
+    description: Pre-seeded avg low calibration values
+  precalib-avg-highs:
+    type: array
+    description: Pre-seeded avg high calibration values

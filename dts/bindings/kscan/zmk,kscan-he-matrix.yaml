@@ -1,0 +1,24 @@
+# Copyright (c) 2020, The ZMK Contributors
+# SPDX-License-Identifier: MIT
+
+description: HE analog matrix
+
+compatible: "zmk,kscan-he-matrix"
+
+include: ["zmk,kscan-analog-matrix.yaml"]
+
+properties:
+  skip-startup-calibration:
+    type: boolean
+  select-gpios:
+    type: phandle-array
+    required: true
+  channel-select-masks:
+    type: array
+    description: Array of masked selects for each io-channels. Those set bits are indexes of selects to skip for each io-channel.
+  io-channels:
+    required: true
+  high-threshold-noise-mult:
+    type: int
+    default: 4
+

@@ -1,0 +1,31 @@
+
+config ZMK_KSCAN_HE_MATRIX
+    bool "HE Matrix KScan Driver"
+    default y
+    depends on DT_HAS_ZMK_KSCAN_HE_MATRIX_ENABLED
+    select ZMK_ANALOG_MATRIX
+
+if ZMK_KSCAN_HE_MATRIX
+
+config ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX
+	default "he"
+
+config ZMK_KSCAN_HE_MATRIX_SHELL
+	bool "HE Matrix Shell"
+	default y
+	select ZMK_ANALOG_MATRIX_SHELL
+	depends on SHELL
+
+config ZMK_KSCAN_HE_MATRIX_THREAD_PRIORITY
+	int "Thread priority"
+	default -1
+	help
+	  Priority of thread used by the driver to handle interrupts.
+
+config ZMK_KSCAN_HE_MATRIX_THREAD_STACK_SIZE
+	int "Thread stack size"
+	default 768
+	help
+	  Stack size of thread used by the driver to handle interrupts.
+
+endif # ZMK_KSCAN_HE_MATRIX

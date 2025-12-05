@@ -12,7 +12,8 @@
 #include <zephyr/shell/shell.h>
 #include <zephyr/sys/util.h>
 
-#include "ec_matrix_settings.h"
+#include "analog_matrix_settings.h"
+#include "analog_matrix_shell.h"
 #include "zmk_kscan_ec_matrix.h"
 
 #define DT_DRV_COMPAT zmk_kscan_ec_matrix
@@ -21,16 +22,7 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(ec_matrix_shell);
 
-#define CMD_HELP_SCAN_RATE "Print EC Scan Rate.\n"
-#define CMD_HELP_SAMPLE "Sample a specific position.\n"
 #define CMD_HELP_READ_TIMING "Print EC Read Timing.\n"
-#define CMD_HELP_CALIBRATE "EC Calibration Utilities.\n"
-#define CMD_HELP_CALIBRATION_START "Calibrate the EC Martix.\n"
-#define CMD_HELP_CALIBRATION_EXPORT "Export calibration data as DTS props.\n"
-
-#define CMD_HELP_CALIBRATION_SAVE "Save the EC Martix Calibration To Flash.\n"
-
-#define CMD_HELP_CALIBRATION_LOAD "Load the EC Martix Calibration From Flash.\n"
 
 #define DEVICES(n) DEVICE_DT_INST_GET(n),
 
@@ -43,150 +35,6 @@ static struct matrix_hdl {
     const struct device *dev;
 } matrix_hdl_list[] = {FOR_EACH(EC_MATRIX_ENTRY, (, ), INIT_MACRO())};
 
-static struct matrix_hdl *get_matrix(const char *device_label) {
-    for (int i = 0; i < ARRAY_SIZE(matrix_hdl_list); i++) {
-        if (!strcmp(device_label, matrix_hdl_list[i].dev->name)) {
-            return &matrix_hdl_list[i];
-        }
-    }
-
-    /* This will never happen because ADC was prompted by shell */
-    __ASSERT_NO_MSG(false);
-    return NULL;
-}
-
-static void calibrate_cb(const struct zmk_kscan_ec_matrix_calibration_event *ev,
-                         const void *user_data) {
-    const struct shell *sh = (const struct shell *)user_data;
-
-    switch (ev->type) {
-    case CALIBRATION_EV_LOW_SAMPLING_START:
-        shell_prompt_change(sh, "-");
-        shell_print(sh, "Low value sampling begins. Please do not press any keys");
-        k_sleep(K_SECONDS(1));
-        break;
-    case CALIBRATION_EV_HIGH_SAMPLING_START:
-        shell_prompt_change(sh, "-");
-        shell_print(sh, "\nHigh value sampling begins. Please slowly press each key in sequence, "
-                        "releasing once an asterisk appears");
-        break;
-    case CALIBRATION_EV_POSITION_LOW_DETERMINED:
-#if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_VERBOSE_CALIBRATOR)
-        shell_print(sh, "Key at (%d,%d) is calibrated with avg low %d, noise: %d",
-                    ev->data.position_low_determined.strobe, ev->data.position_low_determined.input,
-                    ev->data.position_low_determined.low_avg,
-                    ev->data.position_low_determined.noise);
-#else
-        shell_fprintf(sh, SHELL_NORMAL, "*");
-#endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_VERBOSE_CALIBRATOR)
-        break;
-    case CALIBRATION_EV_POSITION_COMPLETE:
-#if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_VERBOSE_CALIBRATOR)
-        shell_print(sh,
-                    "Key at (%d,%d) is calibrated with avg low %d, avg high %d, noise: %d, SNR: %d",
-                    ev->data.position_complete.strobe, ev->data.position_complete.input,
-                    ev->data.position_complete.low_avg, ev->data.position_complete.high_avg,
-                    ev->data.position_complete.noise, ev->data.position_complete.snr);
-#else
-        shell_fprintf(sh, SHELL_NORMAL, "*");
-#endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_VERBOSE_CALIBRATOR)
-        break;
-    case CALIBRATION_EV_COMPLETE:
-        shell_prompt_change(sh, CONFIG_SHELL_PROMPT_UART);
-        shell_print(sh, "\nCalibration complete!");
-        break;
-    }
-}
-
-static int cmd_matrix_calibration_start(const struct shell *shell, size_t argc, char **argv,
-                                        void *data) {
-    /* -2: index of ADC label name */
-    struct matrix_hdl *matrix = get_matrix(argv[-2]);
-
-    int ret = zmk_kscan_ec_matrix_calibrate(matrix->dev, &calibrate_cb, shell);
-    if (ret < 0) {
-        shell_print(shell, "Failed to start calibration (%d)", ret);
-    }
-
-    return ret;
-}
-
-static void sample_cb(uint16_t val,
-                         const void *user_data) {
-    const struct shell *sh = (const struct shell *)user_data;
-
-    shell_print(sh, "Val: %d", val);
-}
-
-static int cmd_matrix_sample(const struct shell *shell, size_t argc, char **argv,
-                                         void *data) {
-    /* -2: index of ADC label name */
-    struct matrix_hdl *matrix = get_matrix(argv[-1]);
-    uint8_t strobe;
-    uint8_t input;
-    uint16_t times;
-
-    strobe = strtol(argv[1], NULL, 10);
-    input = strtol(argv[2], NULL, 10);
-
-    times = (argc == 4) ? strtol(argv[3], NULL, 10) : 10;
-
-    shell_print(shell, "Got a sample for %d,%d with %d times", strobe, input, times);
-
-    int ret = zmk_kscan_ec_matrix_sample(matrix->dev, strobe, input, times, &sample_cb, shell);
-    if (ret < 0) {
-        shell_print(shell, "Failed to start sampling (%d)", ret);
-    }
-
-    return ret;
-}
-
-static void export_cb(const struct device *dev,
-                      struct zmk_kscan_ec_matrix_calibration_entry *entries, size_t len,
-                      const void *user_data) {
-    const struct shell *shell = (const struct shell *)user_data;
-
-    shell_print(shell, "\tprecalib-avg-highs = <");
-    for (size_t i = 0; i < len; i++) {
-        shell_print(shell, "\t\t%d", entries[i].avg_high);
-    }
-    shell_print(shell, "\t>;");
-    shell_print(shell, "precalib-avg-lows = <");
-    for (size_t i = 0; i < len; i++) {
-        shell_print(shell, "\t\t%d", entries[i].avg_low);
-    }
-    shell_print(shell, "\t>;");
-}
-
-static int cmd_matrix_calibration_export(const struct shell *shell, size_t argc, char **argv,
-                                         void *data) {
-    /* -2: index of ADC label name */
-    struct matrix_hdl *matrix = get_matrix(argv[-2]);
-
-    int ret = zmk_kscan_ec_matrix_access_calibration(matrix->dev, &export_cb, shell);
-    if (ret < 0) {
-        shell_print(shell, "Failed to access calibration data to export (%d)", ret);
-    }
-
-    return ret;
-}
-
-#if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
-
-static int cmd_matrix_scan_rate(const struct shell *shell, size_t argc, char **argv, void *data) {
-    struct matrix_hdl *matrix = get_matrix(argv[-1]);
-    uint64_t duration_ns = zmk_kscan_ec_matrix_max_scan_duration_ns(matrix->dev);
-
-    if (duration_ns > 0) {
-        uint64_t scan_rate = 1000000000 / duration_ns;
-        shell_info(shell, "Matrix scan rate: %lluHz", scan_rate);
-    }
-
-    return 0;
-}
-
-#endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
-
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
 
 static void print_pct(const struct shell *shell, uint64_t total_ns, uint64_t subset_ns,
@@ -197,8 +45,13 @@ static void print_pct(const struct shell *shell, uint64_t total_ns, uint64_t sub
 }
 
 static int cmd_matrix_read_timing(const struct shell *shell, size_t argc, char **argv, void *data) {
-    struct matrix_hdl *matrix = get_matrix(argv[-1]);
-    struct zmk_kscan_ec_matrix_read_timing timing = zmk_kscan_ec_matrix_read_timing(matrix->dev);
+    const struct device *dev = device_get_binding(argv[-1]);
+    if (!dev) {
+        shell_error(shell, "Failed to find device named %s", argv[-1]);
+	return -ENODEV;
+    }
+
+    struct zmk_kscan_ec_matrix_read_timing timing = zmk_kscan_ec_matrix_read_timing(dev);
 
     shell_print(shell, "Total time for a read: %lluns", timing.total_ns);
     print_pct(shell, timing.total_ns, timing.adc_sequence_init_ns, "Sequence Init");
@@ -217,56 +70,11 @@ static int cmd_matrix_read_timing(const struct shell *shell, size_t argc, char *
 
 #endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
 
-#if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SETTINGS)
+ANALOG_MATRIX_CALIBRATION_CMD_SET(sub_matrix_calibration_cmds)
 
-static int cmd_matrix_calibration_save(const struct shell *shell, size_t argc, char **argv,
-                                       void *data) {
-    struct matrix_hdl *matrix = get_matrix(argv[-2]);
-    int ret = zmk_kscan_ec_matrix_settings_save_calibration(matrix->dev);
-    if (ret < 0) {
-        shell_print(shell, "Failed to initiate save calibration (%d)", ret);
-    }
-
-    return ret;
-}
-
-static int cmd_matrix_calibration_load(const struct shell *shell, size_t argc, char **argv,
-                                       void *data) {
-    struct matrix_hdl *matrix = get_matrix(argv[-2]);
-    int ret = zmk_kscan_ec_matrix_settings_load_calibration(matrix->dev);
-    if (ret < 0) {
-        shell_print(shell, "Failed to initiate load calibration (%d)", ret);
-    }
-
-    return ret;
-}
-
-#endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SETTINGS)
-
-SHELL_STATIC_SUBCMD_SET_CREATE(
-    sub_matrix_calibration_cmds,
-    /* Alphabetically sorted. */
-    SHELL_CMD(start, NULL, CMD_HELP_CALIBRATION_START, cmd_matrix_calibration_start),
-    SHELL_CMD(export, NULL, CMD_HELP_CALIBRATION_EXPORT, cmd_matrix_calibration_export),
-#if IS_ENABLED(CONFIG_SETTINGS)
-    SHELL_CMD(save, NULL, CMD_HELP_CALIBRATION_SAVE, cmd_matrix_calibration_save),
-    SHELL_CMD(load, NULL, CMD_HELP_CALIBRATION_LOAD, cmd_matrix_calibration_load),
-#endif                   // IS_ENABLED(CONFIG_SETTINGS)
-    SHELL_SUBCMD_SET_END /* Array terminated. */
-);
-
-SHELL_STATIC_SUBCMD_SET_CREATE(
-    sub_matrix_cmds,
-    /* Alphabetically sorted. */
-    SHELL_CMD(calibration, &sub_matrix_calibration_cmds, CMD_HELP_CALIBRATE, NULL),
-    SHELL_CMD_ARG(sample, NULL, CMD_HELP_SAMPLE, cmd_matrix_sample, 2, 3),
-#if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
-    SHELL_CMD(scan_rate, NULL, CMD_HELP_SCAN_RATE, cmd_matrix_scan_rate),
-#endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
-#if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
-    SHELL_CMD(read_timing, NULL, CMD_HELP_READ_TIMING, cmd_matrix_read_timing),
-#endif                   // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
-    SHELL_SUBCMD_SET_END /* Array terminated. */
+ANALOG_MATRIX_SHELL_CMDS(sub_matrix_cmds, sub_matrix_calibration_cmds,
+  COND_CODE_1(IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING),
+    (SHELL_CMD(read_timing, NULL, CMD_HELP_READ_TIMING, cmd_matrix_read_timing),), ())
 );
 
 static void cmd_matrix_dev_get(size_t idx, struct shell_static_entry *entry) {
