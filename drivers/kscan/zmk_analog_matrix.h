@@ -8,6 +8,7 @@
 
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/kscan.h>
+#include <zmk/drivers/kscan/zmk_analog_matrix.h>
 
 typedef uint16_t (*zmk_analog_matrix_read_raw_cb_t)(const struct device *dev, uint8_t select, uint8_t strobe);
 typedef void (*zmk_analog_matrix_power_cb_t)(const struct device *dev, bool on);
@@ -43,53 +44,9 @@ struct zmk_analog_matrix_common_cfg {
     zmk_analog_matrix_input_resolution_cb_t input_resolution;
 };
 
-struct zmk_analog_matrix_calibration_entry {
-    uint16_t avg_low;
-    uint16_t avg_high;
-    uint16_t noise;
-};
-
-struct zmk_analog_matrix_calibration_event {
-    enum zmk_analog_matrix_calibration_event_type {
-        CALIBRATION_EV_LOW_SAMPLING_START,
-        CALIBRATION_EV_HIGH_SAMPLING_START,
-        CALIBRATION_EV_POSITION_LOW_DETERMINED,
-        CALIBRATION_EV_POSITION_COMPLETE,
-        CALIBRATION_EV_COMPLETE,
-    } type;
-
-    union zmk_analog_matrix_calibration_event_data {
-        struct {
-            uint8_t strobe;
-            uint8_t input;
-
-            int16_t low_avg;
-            int16_t noise;
-            int16_t snr;
-        } position_low_determined;
-        struct {
-            uint8_t strobe;
-            uint8_t input;
-
-            int16_t low_avg;
-            int16_t high_avg;
-            int16_t noise;
-            int16_t snr;
-        } position_complete;
-
-        struct {
-
-        } calibration_complete;
-    } data;
-};
-
-typedef void (*zmk_analog_matrix_sample_cb_t)(uint16_t val, const void *);
-typedef void (*zmk_analog_matrix_calibration_access_cb_t)(const struct device *dev, struct zmk_analog_matrix_calibration_entry *entries, size_t len, const void *user_data);
-
-typedef void (*zmk_analog_matrix_calibration_cb_t)(const struct zmk_analog_matrix_calibration_event *ev, const void *);
-
 struct zmk_analog_matrix_common_data {
     kscan_callback_t callback;
+    struct k_thread thread;
     struct k_mutex mutex;
     uint16_t poll_interval;
     struct zmk_analog_matrix_calibration_entry *calibrations;
@@ -119,8 +76,6 @@ int zmk_analog_matrix_configure(const struct device *dev, kscan_callback_t callb
 int zmk_analog_matrix_enable(const struct device *dev);
 int zmk_analog_matrix_disable(const struct device *dev);
 
-int zmk_analog_matrix_access_calibration(const struct device *dev, zmk_analog_matrix_calibration_access_cb_t cb, const void *user_data);
-
 struct zmk_analog_matrix_calibration_entry *zmk_analog_matrix_calibration_entry_for_sel_str(const struct device *dev, uint8_t select, uint8_t strobe);
 bool zmk_analog_matrix_valid_sel_str(const struct device *dev, uint8_t sel, uint8_t str, bool need_calibration);
 void zmk_analog_matrix_thread_main(void *arg1, void *unused1, void *unused2);
@@ -129,12 +84,3 @@ int zmk_analog_matrix_init(const struct device *dev);
 
 uint64_t zmk_analog_matrix_max_scan_duration_ns(const struct device *dev);
 
-int zmk_analog_matrix_calibrate(const struct device *dev,
-                                  zmk_analog_matrix_calibration_cb_t callback,
-                                  const void *user_data);
-int zmk_analog_matrix_sample(const struct device *dev,
-		uint8_t select,
-		uint8_t input,
-		uint16_t times,
-                                  zmk_analog_matrix_sample_cb_t callback,
-                                  const void *user_data);

@@ -1,0 +1,7 @@
+tests:
+  matrix.analog.he.scanning:
+    tags:
+      - kscan
+      - drivers
+    integration_platforms:
+      - native_sim

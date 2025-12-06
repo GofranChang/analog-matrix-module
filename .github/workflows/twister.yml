@@ -1,0 +1,53 @@
+on: [push, pull_request]
+
+jobs:
+  twister:
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-dev-arm:stable
+    name: Twister Tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: analog-matrix-module
+
+      - name: Cache west modules
+        uses: actions/cache@v4
+        continue-on-error: true
+        env:
+          cache_name: cache-zephyr-${{ env.zephyr_version }}-modules
+        with:
+          path: |
+            ${{ github.workspace }}/analog-matrix-module/modules/
+            ${{ github.workspace }}/analog-matrix-module/tools/
+            ${{ github.workspace }}/analog-matrix-module/zephyr/
+            ${{ github.workspace }}/analog-matrix-module/bootloader/
+          key: ${{ runner.os }}-build-${{ env.cache_name }}-${{ hashFiles('**/west.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-build-${{ env.cache_name }}-
+            ${{ runner.os }}-build-
+            ${{ runner.os }}-
+
+      - name: West Init
+        working-directory: ${{ github.workspace }}/analog-matrix-module
+        run: west init -l tests/
+
+      - name: West Update
+        working-directory: ${{ github.workspace }}/analog-matrix-module
+        run: west update --fetch-opt=--filter=tree:0
+
+      - name: Install Python Packages
+        working-directory: ${{ github.workspace }}/analog-matrix-module/zephyr
+        run: PIP_BREAK_SYSTEM_PACKAGES=1 pip3 install -r scripts/requirements.txt
+        
+      - name: West Zephyr export
+        working-directory: ${{ github.workspace }}/analog-matrix-module
+        run: west zephyr-export
+
+      - name: West Twister
+        working-directory: ${{ github.workspace }}/analog-matrix-module/zephyr/
+        env:
+          DIR: ${{ github.workspace }}/analog-matrix-module
+        run: |
+          west twister -p native_sim/native/64 -T ${DIR}/tests/ --extra-args EXTRA_ZEPHYR_MODULES=${DIR}

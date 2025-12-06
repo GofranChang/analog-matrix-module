@@ -2,6 +2,8 @@
 
 zephyr_library_amend()
 
+zephyr_library_include_directories(../../include)
+
 zephyr_library_sources_ifdef(CONFIG_ZMK_ANALOG_MATRIX zmk_analog_matrix.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_KSCAN_EC_MATRIX zmk_kscan_ec_matrix.c)
 zephyr_library_sources_ifdef(CONFIG_ZMK_KSCAN_HE_MATRIX zmk_kscan_he_matrix.c)

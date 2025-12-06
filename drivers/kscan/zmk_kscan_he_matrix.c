@@ -11,7 +11,6 @@
 #include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/kscan.h>
-#include <zephyr/drivers/pinctrl.h>
 #include <zephyr/pm/device.h>
 #include <zephyr/sys/util.h>
 
@@ -31,7 +30,6 @@ struct kscan_he_matrix_config {
 
 struct kscan_he_matrix_data {
     struct zmk_analog_matrix_common_data common;
-    struct k_thread thread;
     K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_STACK_SIZE);
 };
 
@@ -128,6 +126,7 @@ static uint8_t zmk_kscan_he_matrix_input_resolution(const struct device *dev, ui
 static int kscan_he_matrix_init(const struct device *dev) {
     int err;
     struct kscan_he_matrix_data *data = dev->data;
+    struct zmk_analog_matrix_common_data *common_data = dev->data;
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
     const struct kscan_he_matrix_config *cfg = dev->config;
 
@@ -177,10 +176,11 @@ static int kscan_he_matrix_init(const struct device *dev) {
         gpio_pin_configure_dt(&cfg->selects[sel], GPIO_DISCONNECTED);
     }
 
-    k_thread_create(&data->thread, data->thread_stack, CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_STACK_SIZE,
+    k_thread_create(&common_data->thread, data->thread_stack, CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_STACK_SIZE,
                     zmk_analog_matrix_thread_main, (void *)dev, NULL, NULL,
-                    K_PRIO_COOP(CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_PRIORITY), 0, K_NO_WAIT);
+                    K_PRIO_COOP(CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_PRIORITY), 0, K_MSEC(1));
 
+    k_thread_suspend(&common_data->thread);
     return 0;
 }
 

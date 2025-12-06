@@ -42,7 +42,6 @@ struct kscan_ec_matrix_config {
 
 struct kscan_ec_matrix_data {
     struct zmk_analog_matrix_common_data common;
-    struct k_thread thread;
     K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_STACK_SIZE);
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
     struct zmk_kscan_ec_matrix_read_timing read_timing;
@@ -286,6 +285,7 @@ struct zmk_kscan_ec_matrix_read_timing zmk_kscan_ec_matrix_read_timing(const str
 static int kscan_ec_matrix_init(const struct device *dev) {
     int err;
     struct kscan_ec_matrix_data *data = dev->data;
+    struct zmk_analog_matrix_common_data *common_data = dev->data;
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
     const struct kscan_ec_matrix_config *cfg = dev->config;
 
@@ -371,7 +371,7 @@ static int kscan_ec_matrix_init(const struct device *dev) {
         gpio_pin_configure_dt(&cfg->selects[sel], GPIO_DISCONNECTED);
     }
 
-    k_thread_create(&data->thread, data->thread_stack, CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_STACK_SIZE,
+    k_thread_create(&common_data->thread, data->thread_stack, CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_STACK_SIZE,
                     zmk_analog_matrix_thread_main, (void *)dev, NULL, NULL,
                     K_PRIO_COOP(CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_PRIORITY), 0, K_NO_WAIT);
 

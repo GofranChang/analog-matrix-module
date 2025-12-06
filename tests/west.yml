@@ -1,0 +1,25 @@
+manifest:
+  group-filter: [-hal, -babblesim]
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.1.0
+      clone-depth: 1
+      import:
+        name-blocklist:
+          - ci-tools
+          - nrf_hw_models
+          - loramac-node
+          - mcuboot
+          - mcumgr
+          - net-tools
+          - openthread
+          - edtt
+          - trusted-firmware-m
+          - lvgl
+          - littlefs
+  self:
+    path: tests

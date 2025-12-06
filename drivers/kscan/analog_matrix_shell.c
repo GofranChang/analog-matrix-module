@@ -40,7 +40,7 @@ static void calibrate_cb(const struct zmk_analog_matrix_calibration_event *ev,
     case CALIBRATION_EV_POSITION_LOW_DETERMINED:
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VERBOSE_CALIBRATOR)
         shell_print(sh, "Key at (%d,%d) is calibrated with avg low %d, noise: %d",
-                    ev->data.position_low_determined.strobe, ev->data.position_low_determined.input,
+                    ev->data.position_low_determined.select, ev->data.position_low_determined.input,
                     ev->data.position_low_determined.low_avg,
                     ev->data.position_low_determined.noise);
 #else
@@ -51,7 +51,7 @@ static void calibrate_cb(const struct zmk_analog_matrix_calibration_event *ev,
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VERBOSE_CALIBRATOR)
         shell_print(sh,
                     "Key at (%d,%d) is calibrated with avg low %d, avg high %d, noise: %d, SNR: %d",
-                    ev->data.position_complete.strobe, ev->data.position_complete.input,
+                    ev->data.position_complete.select, ev->data.position_complete.input,
                     ev->data.position_complete.low_avg, ev->data.position_complete.high_avg,
                     ev->data.position_complete.noise, ev->data.position_complete.snr);
 #else
@@ -90,7 +90,7 @@ static void sample_cb(uint16_t val,
 
 int zmk_analog_matrix_cmd_sample(const struct shell *shell, size_t argc, char **argv,
                                          void *data) {
-    uint8_t strobe;
+    uint8_t select;
     uint8_t input;
     uint16_t times;
     const struct device *dev = device_get_binding(argv[-1]);
@@ -100,14 +100,14 @@ int zmk_analog_matrix_cmd_sample(const struct shell *shell, size_t argc, char **
 	return -ENODEV;
     }
 
-    strobe = strtol(argv[1], NULL, 10);
-    input = strtol(argv[2], NULL, 10);
+    input = strtol(argv[1], NULL, 10);
+    select = strtol(argv[2], NULL, 10);
 
     times = (argc == 4) ? strtol(argv[3], NULL, 10) : 10;
 
-    shell_print(shell, "Got a sample for %d,%d with %d times", strobe, input, times);
+    shell_print(shell, "Got a sample for %d,%d with %d times", select, input, times);
 
-    int ret = zmk_analog_matrix_sample(dev, input, strobe, times, &sample_cb, shell);
+    int ret = zmk_analog_matrix_sample(dev, select, input, times, &sample_cb, shell);
     if (ret < 0) {
         shell_print(shell, "Failed to start sampling (%d)", ret);
     }

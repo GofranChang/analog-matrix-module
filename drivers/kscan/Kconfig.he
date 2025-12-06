@@ -18,7 +18,7 @@ config ZMK_KSCAN_HE_MATRIX_SHELL
 
 config ZMK_KSCAN_HE_MATRIX_THREAD_PRIORITY
 	int "Thread priority"
-	default -1
+	default 1
 	help
 	  Priority of thread used by the driver to handle interrupts.
 
