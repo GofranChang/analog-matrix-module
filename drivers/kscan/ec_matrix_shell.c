@@ -48,7 +48,7 @@ static int cmd_matrix_read_timing(const struct shell *shell, size_t argc, char *
     const struct device *dev = device_get_binding(argv[-1]);
     if (!dev) {
         shell_error(shell, "Failed to find device named %s", argv[-1]);
-	return -ENODEV;
+        return -ENODEV;
     }
 
     struct zmk_kscan_ec_matrix_read_timing timing = zmk_kscan_ec_matrix_read_timing(dev);
@@ -73,9 +73,10 @@ static int cmd_matrix_read_timing(const struct shell *shell, size_t argc, char *
 ANALOG_MATRIX_CALIBRATION_CMD_SET(sub_matrix_calibration_cmds)
 
 ANALOG_MATRIX_SHELL_CMDS(sub_matrix_cmds, sub_matrix_calibration_cmds,
-  COND_CODE_1(IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING),
-    (SHELL_CMD(read_timing, NULL, CMD_HELP_READ_TIMING, cmd_matrix_read_timing),), ())
-);
+                         COND_CODE_1(IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING),
+                                     (SHELL_CMD(read_timing, NULL, CMD_HELP_READ_TIMING,
+                                                cmd_matrix_read_timing), ),
+                                     ()));
 
 static void cmd_matrix_dev_get(size_t idx, struct shell_static_entry *entry) {
     /* -1 because the last element in the list is a "list terminator" */

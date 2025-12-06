@@ -50,17 +50,18 @@ struct zmk_analog_matrix_calibration_event {
 };
 
 typedef void (*zmk_analog_matrix_sample_cb_t)(uint16_t val, const void *);
-typedef void (*zmk_analog_matrix_calibration_access_cb_t)(const struct device *dev, struct zmk_analog_matrix_calibration_entry *entries, size_t len, const void *user_data);
+typedef void (*zmk_analog_matrix_calibration_access_cb_t)(
+    const struct device *dev, struct zmk_analog_matrix_calibration_entry *entries, size_t len,
+    const void *user_data);
 
-typedef void (*zmk_analog_matrix_calibration_cb_t)(const struct zmk_analog_matrix_calibration_event *ev, const void *);
-int zmk_analog_matrix_access_calibration(const struct device *dev, zmk_analog_matrix_calibration_access_cb_t cb, const void *user_data);
+typedef void (*zmk_analog_matrix_calibration_cb_t)(
+    const struct zmk_analog_matrix_calibration_event *ev, const void *);
+int zmk_analog_matrix_access_calibration(const struct device *dev,
+                                         zmk_analog_matrix_calibration_access_cb_t cb,
+                                         const void *user_data);
 
 int zmk_analog_matrix_calibrate(const struct device *dev,
-                                  zmk_analog_matrix_calibration_cb_t callback,
-                                  const void *user_data);
-int zmk_analog_matrix_sample(const struct device *dev,
-		uint8_t select,
-		uint8_t input,
-		uint16_t times,
-                                  zmk_analog_matrix_sample_cb_t callback,
-                                  const void *user_data);
+                                zmk_analog_matrix_calibration_cb_t callback, const void *user_data);
+int zmk_analog_matrix_sample(const struct device *dev, uint8_t select, uint8_t input,
+                             uint16_t times, zmk_analog_matrix_sample_cb_t callback,
+                             const void *user_data);

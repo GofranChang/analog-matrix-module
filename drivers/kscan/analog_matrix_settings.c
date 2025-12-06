@@ -59,7 +59,8 @@ static int settings_load_cb(const char *key, size_t len, settings_read_cb read_c
 static void load_cb(const struct device *dev, struct zmk_analog_matrix_calibration_entry *entries,
                     size_t len, const void *user_data) {
     struct load_state state = (struct load_state){.entries = entries, .len = len};
-    snprintf(state.setting_name, MAX_SETTING_LEN, "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX "/cal/%s", dev->name);
+    snprintf(state.setting_name, MAX_SETTING_LEN,
+             "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX "/cal/%s", dev->name);
     LOG_DBG("Loading the subtree directly for %s", state.setting_name);
     settings_load_subtree_direct(state.setting_name, settings_load_cb, &state);
 }
@@ -70,7 +71,8 @@ static void save_cb(const struct device *dev, struct zmk_analog_matrix_calibrati
 
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_DISCRETE)
     for (size_t i = 0; i < len; i++) {
-        snprintf(setting_name, MAX_SETTING_LEN, "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX "/cal/%s/%d", dev->name, i);
+        snprintf(setting_name, MAX_SETTING_LEN,
+                 "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX "/cal/%s/%d", dev->name, i);
         int ret = settings_save_one(setting_name, &entries[i],
                                     sizeof(struct zmk_analog_matrix_calibration_entry));
         if (ret != 0) {
@@ -79,7 +81,8 @@ static void save_cb(const struct device *dev, struct zmk_analog_matrix_calibrati
         }
     }
 #else
-    snprintf(setting_name, MAX_SETTING_LEN, "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX "/cal/%s", dev->name);
+    snprintf(setting_name, MAX_SETTING_LEN,
+             "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX "/cal/%s", dev->name);
 
     int ret = settings_save_one(setting_name, entries,
                                 len * sizeof(struct zmk_analog_matrix_calibration_entry));
@@ -101,128 +104,133 @@ int zmk_analog_matrix_settings_save_calibration(const struct device *dev) {
 }
 
 struct settings_load_state {
-	settings_read_cb read_cb;
-	void *cb_arg;
-	size_t size;
+    settings_read_cb read_cb;
+    void *cb_arg;
+    size_t size;
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_DISCRETE)
-	uint8_t calibration_index;
+    uint8_t calibration_index;
 #endif
 };
 
-
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_DISCRETE)
 
-static void load_discrete_calibrations_cb(const struct device *dev, struct zmk_analog_matrix_calibration_entry *entries,
-                    size_t len, const void *user_data) {
-	const struct settings_load_state *load = user_data;
+static void load_discrete_calibrations_cb(const struct device *dev,
+                                          struct zmk_analog_matrix_calibration_entry *entries,
+                                          size_t len, const void *user_data) {
+    const struct settings_load_state *load = user_data;
 
-	if (load->size != sizeof(struct zmk_analog_matrix_calibration_entry)) {
-		LOG_WRN("Incorrect stored calibration size (stored: %d, expected: %d)", load->size, sizeof(struct zmk_analog_matrix_calibration_entry));
-		return;
-	}
+    if (load->size != sizeof(struct zmk_analog_matrix_calibration_entry)) {
+        LOG_WRN("Incorrect stored calibration size (stored: %d, expected: %d)", load->size,
+                sizeof(struct zmk_analog_matrix_calibration_entry));
+        return;
+    }
 
-	if (load->calibration_index >= len) {
-		LOG_WRN("Ignoring calibration for invalid index %d, skipping", load->calibration_index);
-		return;
-	}
-	ssize_t ret = load->read_cb(load->cb_arg, &entries[load->calibration_index], len);
-	if (ret < 0) {
-		LOG_ERR("Failed to load the settings from flash (%d)", ret);
-		return;
-	}
+    if (load->calibration_index >= len) {
+        LOG_WRN("Ignoring calibration for invalid index %d, skipping", load->calibration_index);
+        return;
+    }
+    ssize_t ret = load->read_cb(load->cb_arg, &entries[load->calibration_index], len);
+    if (ret < 0) {
+        LOG_ERR("Failed to load the settings from flash (%d)", ret);
+        return;
+    }
 }
 
 #else
 
-static void load_combined_calibrations_cb(const struct device *dev, struct zmk_analog_matrix_calibration_entry *entries,
-                    size_t len, const void *user_data) {
-	const struct settings_load_state *load = user_data;
+static void load_combined_calibrations_cb(const struct device *dev,
+                                          struct zmk_analog_matrix_calibration_entry *entries,
+                                          size_t len, const void *user_data) {
+    const struct settings_load_state *load = user_data;
 
-	if (load->size != (sizeof(struct zmk_analog_matrix_calibration_entry) * len)) {
-		LOG_WRN("Incorrect stored calibration size (stored: %d, expected: %d)", load->size, (sizeof(struct zmk_analog_matrix_calibration_entry) * len));
-		return;
-	}
+    if (load->size != (sizeof(struct zmk_analog_matrix_calibration_entry) * len)) {
+        LOG_WRN("Incorrect stored calibration size (stored: %d, expected: %d)", load->size,
+                (sizeof(struct zmk_analog_matrix_calibration_entry) * len));
+        return;
+    }
 
-	ssize_t ret = load->read_cb(load->cb_arg, entries,
-	                      len * sizeof(struct zmk_analog_matrix_calibration_entry));
-	if (ret < 0) {
-	    LOG_ERR("Failed to load the settings from flash");
-	}
+    ssize_t ret = load->read_cb(load->cb_arg, entries,
+                                len * sizeof(struct zmk_analog_matrix_calibration_entry));
+    if (ret < 0) {
+        LOG_ERR("Failed to load the settings from flash");
+    }
 }
 
 #endif
 
-static int analog_matrix_settings_set(const char *name, size_t size, settings_read_cb read_cb, void *cb_arg) {
-	const char *next;
+static int analog_matrix_settings_set(const char *name, size_t size, settings_read_cb read_cb,
+                                      void *cb_arg) {
+    const char *next;
 
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_DISCRETE)
-	if (settings_name_steq(name, "cal", &next) && next) {
-		int name_len = settings_name_next(next, &next);
-		if (!next) {
-			LOG_WRN("Missing calibration index in settings name %s", name);
-			return -EINVAL;
-		}
+    if (settings_name_steq(name, "cal", &next) && next) {
+        int name_len = settings_name_next(next, &next);
+        if (!next) {
+            LOG_WRN("Missing calibration index in settings name %s", name);
+            return -EINVAL;
+        }
 
-		char dev_name[name_len+1];
+        char dev_name[name_len + 1];
 
-		memcpy(dev_name, next, name_len);
-		dev_name[name_len] = '\0';
+        memcpy(dev_name, next, name_len);
+        dev_name[name_len] = '\0';
 
-		const struct device *dev = device_get_binding(dev_name);
+        const struct device *dev = device_get_binding(dev_name);
 
-		if (!dev) {
-			LOG_WRN("Unable to locate device %s for calibration loading", dev_name);
-			return -ENODEV;
-		}
+        if (!dev) {
+            LOG_WRN("Unable to locate device %s for calibration loading", dev_name);
+            return -ENODEV;
+        }
 
-		if (size != sizeof(struct zmk_analog_matrix_calibration_entry)) {
-		    LOG_WRN("Ignoring settings with incorrect size");
-		    return -EINVAL;
-		}
-		
-		char *endptr;
-		size_t entry_id = strtoul(next, &endptr, 10);
-		if (endptr == next) {
-			LOG_WRN("Invalid discrete setting key %s", name);
-			return -EINVAL;
+        if (size != sizeof(struct zmk_analog_matrix_calibration_entry)) {
+            LOG_WRN("Ignoring settings with incorrect size");
+            return -EINVAL;
+        }
 
-		}
-		struct settings_load_state state = (struct settings_load_state){
-			.read_cb = read_cb,
-			.cb_arg = cb_arg,
-			.size = size,
-			.calibration_index = entry_id,
-		};
+        char *endptr;
+        size_t entry_id = strtoul(next, &endptr, 10);
+        if (endptr == next) {
+            LOG_WRN("Invalid discrete setting key %s", name);
+            return -EINVAL;
+        }
+        struct settings_load_state state = (struct settings_load_state){
+            .read_cb = read_cb,
+            .cb_arg = cb_arg,
+            .size = size,
+            .calibration_index = entry_id,
+        };
 
-		int ret = zmk_analog_matrix_access_calibration(dev, &load_discrete_calibrations_cb, &state);
-		if (ret < 0) {
-			LOG_WRN("Failed to access calibration (%d)", ret);
-			return ret;
-		}
-	}
+        int ret = zmk_analog_matrix_access_calibration(dev, &load_discrete_calibrations_cb, &state);
+        if (ret < 0) {
+            LOG_WRN("Failed to access calibration (%d)", ret);
+            return ret;
+        }
+    }
 #else
-	if (settings_name_steq(name, "cal", &next) && next) {
-		const struct device *dev = device_get_binding(next);
-		if (!dev) {
-			LOG_WRN("Loading calibration for non-existing device %s", next);
-			return -ENODEV;
-		}
+    if (settings_name_steq(name, "cal", &next) && next) {
+        const struct device *dev = device_get_binding(next);
+        if (!dev) {
+            LOG_WRN("Loading calibration for non-existing device %s", next);
+            return -ENODEV;
+        }
 
-		struct settings_load_state state = (struct settings_load_state){
-			.read_cb = read_cb,
-			.cb_arg = cb_arg,
-			.size = size,
-		};
+        struct settings_load_state state = (struct settings_load_state){
+            .read_cb = read_cb,
+            .cb_arg = cb_arg,
+            .size = size,
+        };
 
-		int ret = zmk_analog_matrix_access_calibration(dev, &load_combined_calibrations_cb, &state);
-		if (ret < 0) {
-			LOG_WRN("Failed to access calibration (%d)", ret);
-			return ret;
-		}
-	}
+        int ret = zmk_analog_matrix_access_calibration(dev, &load_combined_calibrations_cb, &state);
+        if (ret < 0) {
+            LOG_WRN("Failed to access calibration (%d)", ret);
+            return ret;
+        }
+    }
 #endif
 
-	return 0;
+    return 0;
 }
 
-SETTINGS_STATIC_HANDLER_DEFINE(zmk_analog_matrix_settings_handler, "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX, NULL, analog_matrix_settings_set, NULL, NULL);
+SETTINGS_STATIC_HANDLER_DEFINE(zmk_analog_matrix_settings_handler,
+                               "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX, NULL,
+                               analog_matrix_settings_set, NULL, NULL);

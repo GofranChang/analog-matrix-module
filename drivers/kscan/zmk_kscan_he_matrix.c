@@ -33,14 +33,15 @@ struct kscan_he_matrix_data {
     K_KERNEL_STACK_MEMBER(thread_stack, CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_STACK_SIZE);
 };
 
-static int read_channels(const struct device *dev, uint8_t select, const struct adc_dt_spec *channels, size_t channels_len, uint16_t *buf) {
+static int read_channels(const struct device *dev, uint8_t select,
+                         const struct adc_dt_spec *channels, size_t channels_len, uint16_t *buf) {
     const struct kscan_he_matrix_config *cfg = dev->config;
     int ret;
 
     struct adc_sequence sequence = {
         .buffer = buf,
         .buffer_size = channels_len * sizeof(uint16_t),
-	.resolution = channels[0].resolution,
+        .resolution = channels[0].resolution,
     };
 
     for (size_t c = 0; c < channels_len; c++) {
@@ -50,13 +51,13 @@ static int read_channels(const struct device *dev, uint8_t select, const struct 
     ret = gpio_pin_configure_dt(&cfg->selects[select], GPIO_INPUT);
     if (ret < 0) {
         LOG_ERR("Failed to set the select pin (%d)", ret);
-	return ret;
+        return ret;
     }
 
     ret = adc_read(channels[0].dev, &sequence);
     if (ret < 0) {
         LOG_ERR("ADC READ ERROR %d", ret);
-	return ret;
+        return ret;
     }
 
     gpio_pin_configure_dt(&cfg->selects[select], GPIO_DISCONNECTED);
@@ -91,37 +92,37 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, 
     return buf;
 }
 
-static void scan_raw_values(const struct device *dev, zmk_analog_matrix_value_cb_t cb, void *user_data) {
+static void scan_raw_values(const struct device *dev, zmk_analog_matrix_value_cb_t cb,
+                            void *user_data) {
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
     const struct kscan_he_matrix_config *cfg = dev->config;
     for (int sel = 0; sel < common_cfg->selects_len; sel++) {
-	uint16_t buf[common_cfg->inputs_len];
+        uint16_t buf[common_cfg->inputs_len];
 
-	int ret = read_channels(dev, sel, cfg->channels, common_cfg->inputs_len, buf);
-	if (ret < 0) {
+        int ret = read_channels(dev, sel, cfg->channels, common_cfg->inputs_len, buf);
+        if (ret < 0) {
             LOG_ERR("Failed to read the channels");
             continue;
-	}
+        }
 
         for (int str = 0; str < common_cfg->inputs_len; str++) {
-	    if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, true)) {
-	        continue;
-	    }
+            if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, true)) {
+                continue;
+            }
 
-	    cb(dev, sel, str, buf[str], user_data);
-	}
+            cb(dev, sel, str, buf[str], user_data);
+        }
     }
 }
 
 static uint8_t zmk_kscan_he_matrix_input_resolution(const struct device *dev, uint8_t input) {
     const struct kscan_he_matrix_config *cfg = dev->config;
     if (input >= cfg->common.inputs_len) {
-	    return 0;
+        return 0;
     }
 
     return cfg->channels[input].resolution;
 }
-
 
 static int kscan_he_matrix_init(const struct device *dev) {
     int err;
@@ -137,34 +138,33 @@ static int kscan_he_matrix_init(const struct device *dev) {
     }
 
     for (int i = 0; i < common_cfg->inputs_len; i++) {
-	    if (!device_is_ready(cfg->channels[i].dev)) {
-		LOG_ERR("ADC Channel device is not ready");
-		return -ENODEV;
-	    }
+        if (!device_is_ready(cfg->channels[i].dev)) {
+            LOG_ERR("ADC Channel device is not ready");
+            return -ENODEV;
+        }
 
-	    err = adc_channel_setup_dt(&cfg->channels[i]);
-	    if (err < 0) {
-		LOG_ERR("Failed to set up ADC channnel (%d)", err);
-		return err;
-	    }
+        err = adc_channel_setup_dt(&cfg->channels[i]);
+        if (err < 0) {
+            LOG_ERR("Failed to set up ADC channnel (%d)", err);
+            return err;
+        }
 
-	    if (!cfg->skip_startup_calibration) {
-		int16_t buf = 0;
-		struct adc_sequence sequence = {
-		    .buffer = &buf,
-		    .buffer_size = sizeof(buf),
-		};
+        if (!cfg->skip_startup_calibration) {
+            int16_t buf = 0;
+            struct adc_sequence sequence = {
+                .buffer = &buf,
+                .buffer_size = sizeof(buf),
+            };
 
+            adc_sequence_init_dt(&cfg->channels[i], &sequence);
+            sequence.calibrate = true;
 
-		adc_sequence_init_dt(&cfg->channels[i], &sequence);
-		sequence.calibrate = true;
-
-		err = adc_read(cfg->channels[i].dev, &sequence);
-		if (err < 0) {
-		    LOG_ERR("Failed to calibrate on startup: %d", err);
-		    return err;
-		}
-	    }
+            err = adc_read(cfg->channels[i].dev, &sequence);
+            if (err < 0) {
+                LOG_ERR("Failed to calibrate on startup: %d", err);
+                return err;
+            }
+        }
     }
 
     for (int sel = 0; sel < common_cfg->selects_len; sel++) {
@@ -176,8 +176,9 @@ static int kscan_he_matrix_init(const struct device *dev) {
         gpio_pin_configure_dt(&cfg->selects[sel], GPIO_DISCONNECTED);
     }
 
-    k_thread_create(&common_data->thread, data->thread_stack, CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_STACK_SIZE,
-                    zmk_analog_matrix_thread_main, (void *)dev, NULL, NULL,
+    k_thread_create(&common_data->thread, data->thread_stack,
+                    CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_STACK_SIZE, zmk_analog_matrix_thread_main,
+                    (void *)dev, NULL, NULL,
                     K_PRIO_COOP(CONFIG_ZMK_KSCAN_HE_MATRIX_THREAD_PRIORITY), 0, K_MSEC(1));
 
     k_thread_suspend(&common_data->thread);
@@ -223,55 +224,57 @@ static int zkem_pm_action(const struct device *dev, enum pm_device_action action
 #define ZKEM_INIT(n)                                                                               \
     PM_DEVICE_DT_INST_DEFINE(n, zkem_pm_action);                                                   \
     COND_CODE_1(DT_INST_NODE_HAS_PROP(n, pinctrl_names), (PINCTRL_DT_INST_DEFINE(n);), ())         \
-    static struct zmk_analog_matrix_calibration_entry calibration_entries_##n[ENTRIES(n)] = {    \
+    static struct zmk_analog_matrix_calibration_entry calibration_entries_##n[ENTRIES(n)] = {      \
         COND_CODE_1(DT_INST_NODE_HAS_PROP(n, precalib_avg_lows),                                   \
                     (DT_INST_FOREACH_PROP_ELEM_SEP(n, precalib_avg_lows,                           \
                                                    FOREACH_STROBE_CALIB_ENTRY, (, ))),             \
                     (0))};                                                                         \
-    static uint64_t reported_matrix_states_##n[DT_INST_PROP_LEN(n, io_channels)] = {0};           \
+    static uint64_t reported_matrix_states_##n[DT_INST_PROP_LEN(n, io_channels)] = {0};            \
     COND_CODE_1(                                                                                   \
-        DT_INST_NODE_HAS_PROP(n, channel_select_masks),                                              \
-        (static const uint32_t input_select_masks_##n[] = DT_INST_PROP(n, channel_select_masks);),   \
+        DT_INST_NODE_HAS_PROP(n, channel_select_masks),                                            \
+        (static const uint32_t input_select_masks_##n[] = DT_INST_PROP(n, channel_select_masks);), \
         ())                                                                                        \
-	static uint64_t matrix_state_##n[] = {LISTIFY(DT_INST_PROP_LEN(n, io_channels), ZERO, (, ))}; \
+    static uint64_t matrix_state_##n[] = {LISTIFY(DT_INST_PROP_LEN(n, io_channels), ZERO, (, ))};  \
     static struct kscan_he_matrix_data kscan_he_matrix_data##n = {                                 \
-	    .common = { \
-        .calibrations = calibration_entries_##n,                                                   \
-        .reported_matrix_state = reported_matrix_states_##n,                                       \
-        .matrix_state = matrix_state_##n,                  \
-	    }, \
+        .common =                                                                                  \
+            {                                                                                      \
+                .calibrations = calibration_entries_##n,                                           \
+                .reported_matrix_state = reported_matrix_states_##n,                               \
+                .matrix_state = matrix_state_##n,                                                  \
+            },                                                                                     \
     };                                                                                             \
     static const struct gpio_dt_spec selects_##n[] = {                                             \
-        DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), select_gpios, ZKEM_GPIO_DT_SPEC_ELEM)};                \
+        DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), select_gpios, ZKEM_GPIO_DT_SPEC_ELEM)};               \
     BUILD_ASSERT(DT_INST_PROP(n, trigger_percentage) > 10 &&                                       \
                      DT_INST_PROP(n, trigger_percentage) < 90,                                     \
                  "trigger-percentage must be between 10 and 95");                                  \
     static const struct kscan_he_matrix_config kscan_he_matrix_config##n = {                       \
-	    .common = { \
-        .selects_len = DT_INST_PROP_LEN(n, select_gpios),                                           \
-        .inputs_len = DT_INST_PROP_LEN(n, io_channels),                                          \
-        .trigger_percentage = DT_INST_PROP_OR(n, trigger_percentage, 50),                          \
-		    .high_threshold_noise_based = true, \
-		    .high_threshold_noise_mult = DT_INST_PROP_OR(n, high_threshold_noise_mult, 4), \
-		    .read = read_raw_matrix_state, \
-		    .scan = scan_raw_values, \
-		    .input_resolution = zmk_kscan_he_matrix_input_resolution, \
-        COND_CODE_1(DT_INST_NODE_HAS_PROP(n, channel_select_masks),                                  \
-                    (.input_select_masks = input_select_masks_##n, ), ())                          \
-        .active_polling_interval_ms = DT_INST_PROP_OR(n, active_polling_interval_ms, 1),           \
-        COND_CODE_1(                                                                               \
-            IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_DYNAMIC_POLL_RATE),                              \
-            (.idle_polling_interval_ms = DT_INST_PROP_OR(n, idle_polling_interval_ms, 5),          \
-             .sleep_polling_interval_ms = DT_INST_PROP_OR(n, sleep_polling_interval_ms, 500),      \
-             .idle_after_secs = DT_INST_PROP_OR(n, idle_after_secs, 5),                            \
-             .sleep_after_secs = DT_INST_PROP_OR(n, sleep_after_secs, 300),                        \
-             .dynamic_polling_interval = DT_INST_PROP_OR(n, dynamic_polling_interval, false), ),   \
-	     ()) \
-	    }, \
-        .channels = {DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), io_channels, ZKHM_ADC_DT_SPEC_ELEM)},   \
+        .common = {.selects_len = DT_INST_PROP_LEN(n, select_gpios),                               \
+                   .inputs_len = DT_INST_PROP_LEN(n, io_channels),                                 \
+                   .trigger_percentage = DT_INST_PROP_OR(n, trigger_percentage, 50),               \
+                   .high_threshold_noise_based = true,                                             \
+                   .high_threshold_noise_mult = DT_INST_PROP_OR(n, high_threshold_noise_mult, 4),  \
+                   .read = read_raw_matrix_state,                                                  \
+                   .scan = scan_raw_values,                                                        \
+                   .input_resolution = zmk_kscan_he_matrix_input_resolution,                       \
+                   COND_CODE_1(DT_INST_NODE_HAS_PROP(n, channel_select_masks),                     \
+                               (.input_select_masks = input_select_masks_##n, ), ())               \
+                       .active_polling_interval_ms =                                               \
+                       DT_INST_PROP_OR(n, active_polling_interval_ms, 1),                          \
+                   COND_CODE_1(IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_DYNAMIC_POLL_RATE),           \
+                               (.idle_polling_interval_ms =                                        \
+                                    DT_INST_PROP_OR(n, idle_polling_interval_ms, 5),               \
+                                .sleep_polling_interval_ms =                                       \
+                                    DT_INST_PROP_OR(n, sleep_polling_interval_ms, 500),            \
+                                .idle_after_secs = DT_INST_PROP_OR(n, idle_after_secs, 5),         \
+                                .sleep_after_secs = DT_INST_PROP_OR(n, sleep_after_secs, 300),     \
+                                .dynamic_polling_interval =                                        \
+                                    DT_INST_PROP_OR(n, dynamic_polling_interval, false), ),        \
+                               ())},                                                               \
+        .channels = {DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), io_channels, ZKHM_ADC_DT_SPEC_ELEM)},    \
         .selects = selects_##n,                                                                    \
         .skip_startup_calibration = DT_INST_PROP_OR(n, skip_startup_calibration, false),           \
-            };                                                                                  \
+    };                                                                                             \
     DEVICE_DT_INST_DEFINE(n, kscan_he_matrix_init, PM_DEVICE_DT_INST_GET(n),                       \
                           &kscan_he_matrix_data##n, &kscan_he_matrix_config##n, POST_KERNEL,       \
                           CONFIG_KSCAN_INIT_PRIORITY, &kscan_he_matrix_api);

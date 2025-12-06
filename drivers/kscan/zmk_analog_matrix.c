@@ -66,15 +66,16 @@ int zmk_analog_matrix_access_calibration(const struct device *dev,
 }
 
 struct zmk_analog_matrix_calibration_entry *
-zmk_analog_matrix_calibration_entry_for_sel_str(const struct device *dev, uint8_t select, uint8_t strobe) {
+zmk_analog_matrix_calibration_entry_for_sel_str(const struct device *dev, uint8_t select,
+                                                uint8_t strobe) {
     struct zmk_analog_matrix_common_data *data = dev->data;
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
 
     return &data->calibrations[(strobe * common_cfg->selects_len) + select];
 }
 
-
-bool zmk_analog_matrix_valid_sel_str(const struct device *dev, uint8_t sel, uint8_t str, bool need_calibration) {
+bool zmk_analog_matrix_valid_sel_str(const struct device *dev, uint8_t sel, uint8_t str,
+                                     bool need_calibration) {
     const struct zmk_analog_matrix_common_cfg *cfg = dev->config;
 
     if (cfg->input_select_masks && (cfg->input_select_masks[str] & BIT(sel)) != 0) {
@@ -176,9 +177,10 @@ static void run_sample(const struct device *dev) {
     }
 
     for (int i = 0; i < common_data->sample_times; i++) {
-            uint16_t buf = common_cfg->read(dev, common_data->sample_select, common_data->sample_strobe);
-	    common_data->sample_callback(buf, common_data->sample_user_data);
-	    k_sleep(K_SECONDS(1));
+        uint16_t buf =
+            common_cfg->read(dev, common_data->sample_select, common_data->sample_strobe);
+        common_data->sample_callback(buf, common_data->sample_user_data);
+        k_sleep(K_SECONDS(1));
     }
     common_data->sample_callback = NULL;
 
@@ -188,8 +190,8 @@ static void run_sample(const struct device *dev) {
 }
 
 int zmk_analog_matrix_calibrate(const struct device *dev,
-                                  zmk_analog_matrix_calibration_cb_t callback,
-                                  const void *user_data) {
+                                zmk_analog_matrix_calibration_cb_t callback,
+                                const void *user_data) {
     struct zmk_analog_matrix_common_data *common_data = dev->data;
 
     int ret = k_mutex_lock(&common_data->mutex, K_SECONDS(1));
@@ -206,17 +208,14 @@ int zmk_analog_matrix_calibrate(const struct device *dev,
     return 0;
 }
 
-int zmk_analog_matrix_sample(const struct device *dev,
-		uint8_t select,
-		uint8_t input,
-		uint16_t times,
-                                  zmk_analog_matrix_sample_cb_t callback,
-                                  const void *user_data) {
+int zmk_analog_matrix_sample(const struct device *dev, uint8_t select, uint8_t input,
+                             uint16_t times, zmk_analog_matrix_sample_cb_t callback,
+                             const void *user_data) {
     struct zmk_analog_matrix_common_data *common_data = dev->data;
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
 
     if (input >= common_cfg->inputs_len || select >= common_cfg->selects_len) {
-	    return -EINVAL;
+        return -EINVAL;
     }
 
     int ret = k_mutex_lock(&common_data->mutex, K_SECONDS(1));
@@ -241,8 +240,8 @@ static void calibrate(const struct device *dev) {
     struct zmk_analog_matrix_common_data *common_data = dev->data;
     uint16_t keys_to_complete = 0;
     if (common_data->calibration_callback) {
-        struct zmk_analog_matrix_calibration_event ev = {
-            .type = CALIBRATION_EV_LOW_SAMPLING_START, .data = {}};
+        struct zmk_analog_matrix_calibration_event ev = {.type = CALIBRATION_EV_LOW_SAMPLING_START,
+                                                         .data = {}};
         common_data->calibration_callback(&ev, common_data->calibration_user_data);
     }
 
@@ -256,9 +255,9 @@ static void calibrate(const struct device *dev) {
 
     for (int sel = 0; sel < common_cfg->selects_len; sel++) {
         for (int str = 0; str < common_cfg->inputs_len; str++) {
-	    if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, false)) {
+            if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, false)) {
                 continue;
-	    }
+            }
 
             struct zmk_analog_matrix_calibration_entry *calibration =
                 zmk_analog_matrix_calibration_entry_for_sel_str(dev, sel, str);
@@ -284,17 +283,17 @@ static void calibrate(const struct device *dev) {
     }
 
     if (common_data->calibration_callback) {
-        struct zmk_analog_matrix_calibration_event ev = {
-            .type = CALIBRATION_EV_HIGH_SAMPLING_START, .data = {}};
+        struct zmk_analog_matrix_calibration_event ev = {.type = CALIBRATION_EV_HIGH_SAMPLING_START,
+                                                         .data = {}};
         common_data->calibration_callback(&ev, common_data->calibration_user_data);
     }
 
     while (keys_to_complete > 0) {
         for (int sel = 0; sel < common_cfg->selects_len; sel++) {
             for (int str = 0; str < common_cfg->inputs_len; str++) {
-	        if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, false)) {
+                if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, false)) {
                     continue;
-	        }
+                }
 
                 struct zmk_analog_matrix_calibration_entry *calibration =
                     zmk_analog_matrix_calibration_entry_for_sel_str(dev, sel, str);
@@ -303,13 +302,15 @@ static void calibrate(const struct device *dev) {
                     continue;
                 }
 
-		uint16_t high_threshold;
-		if (common_cfg->high_threshold_noise_based) {
-			high_threshold = calibration->avg_low + (common_cfg->high_threshold_noise_mult * MAX(calibration->noise, 1));
-		} else {
-			high_threshold = calibration->avg_low + (((1 << (common_cfg->input_resolution(dev, str) - 1)) / 4));
-                	// high_threshold = (1 << (cfg->adc_channel.resolution - 1));
-		}
+                uint16_t high_threshold;
+                if (common_cfg->high_threshold_noise_based) {
+                    high_threshold = calibration->avg_low + (common_cfg->high_threshold_noise_mult *
+                                                             MAX(calibration->noise, 1));
+                } else {
+                    high_threshold = calibration->avg_low +
+                                     (((1 << (common_cfg->input_resolution(dev, str) - 1)) / 4));
+                    // high_threshold = (1 << (cfg->adc_channel.resolution - 1));
+                }
 
                 uint16_t high_check_val = common_cfg->read(dev, sel, str);
 
@@ -328,14 +329,15 @@ static void calibrate(const struct device *dev) {
 
                 LOG_DBG("Getting high for %d/%d after %d is higher than threashold: %d for "
                         "resolution %d",
-                        str, sel, high_check_val, high_threshold, common_cfg->input_resolution(dev, str));
+                        str, sel, high_check_val, high_threshold,
+                        common_cfg->input_resolution(dev, str));
                 k_sleep(K_MSEC(200));
 
                 struct sample_results high_res = sample(dev, sel, str);
 
                 // Rough approximation of SNR by using avg difference + noise over noise
-                uint16_t snr =
-                    (high_res.avg - calibration->avg_low + calibration->noise) / MAX(calibration->noise, 1);
+                uint16_t snr = (high_res.avg - calibration->avg_low + calibration->noise) /
+                               MAX(calibration->noise, 1);
                 LOG_DBG("High avg for %d,%d is %d. SNR %d", str, sel, high_res.avg, snr);
 
                 calibration->avg_high = high_res.avg;
@@ -380,7 +382,8 @@ static void calibrate(const struct device *dev) {
 
 #endif // IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_CALIBRATOR)
 
-void analog_matrix_read_cb(const struct device *dev, uint8_t sel, uint8_t str, uint16_t val, void *user_data) {
+void analog_matrix_read_cb(const struct device *dev, uint8_t sel, uint8_t str, uint16_t val,
+                           void *user_data) {
     const struct zmk_analog_matrix_common_cfg *cfg = dev->config;
     struct zmk_analog_matrix_common_data *common_data = dev->data;
 
@@ -397,16 +400,17 @@ void analog_matrix_read_cb(const struct device *dev, uint8_t sel, uint8_t str, u
         calibration->avg_high -
         (uint16_t)(MAX((range * cfg->trigger_percentage) / 100, calibration->noise));
     uint16_t hys_buffer = MAX(range / 8, calibration->noise);
-    uint16_t press_limit =
-        normalize(press_limit_raw, calibration->avg_low, calibration->avg_high);
-    uint16_t release_limit = normalize(press_limit_raw - hys_buffer, calibration->avg_low,
-                                       calibration->avg_high);
+    uint16_t press_limit = normalize(press_limit_raw, calibration->avg_low, calibration->avg_high);
+    uint16_t release_limit =
+        normalize(press_limit_raw - hys_buffer, calibration->avg_low, calibration->avg_high);
 
     if (val > press_limit && !prev) {
-        LOG_DBG("%d,%d is active with %d versus %d - %d", str, sel, val, release_limit, press_limit);
+        LOG_DBG("%d,%d is active with %d versus %d - %d", str, sel, val, release_limit,
+                press_limit);
         WRITE_BIT(rows[str], sel, 1);
     } else if (prev && val < release_limit) {
-        LOG_DBG("%d,%d is released with %d versus %d - %d", str, sel, val, release_limit, press_limit);
+        LOG_DBG("%d,%d is released with %d versus %d - %d", str, sel, val, release_limit,
+                press_limit);
         WRITE_BIT(rows[str], sel, 0);
     } else {
         WRITE_BIT(rows[str], sel, prev);
@@ -442,7 +446,8 @@ static void analog_matrix_read(const struct device *dev) {
     for (int s = 0; s < common_cfg->inputs_len; s++) {
         diffs[s] = rows[s] & common_data->matrix_state[s];
         if (rows[s] && rows[s] != common_data->matrix_state[s]) {
-            LOG_DBG("Initial press detected for %d/%lld", s, rows[s] ^ common_data->matrix_state[s]);
+            LOG_DBG("Initial press detected for %d/%lld", s,
+                    rows[s] ^ common_data->matrix_state[s]);
         }
         common_data->matrix_state[s] = rows[s];
     }
@@ -482,8 +487,6 @@ static void analog_matrix_read(const struct device *dev) {
     }
 #endif // IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_DYNAMIC_POLL_RATE)
 }
-
-
 
 void zmk_analog_matrix_thread_main(void *arg1, void *unused1, void *unused2) {
     ARG_UNUSED(unused1);
@@ -532,11 +535,11 @@ void zmk_analog_matrix_thread_main(void *arg1, void *unused1, void *unused2) {
         }
         k_mutex_unlock(&common_data->mutex);
 
-	if (common_data->poll_interval) {
-		k_sleep(K_MSEC(common_data->poll_interval));
-	} else {
-		k_sleep(K_USEC(1));
-	}
+        if (common_data->poll_interval) {
+            k_sleep(K_MSEC(common_data->poll_interval));
+        } else {
+            k_sleep(K_USEC(1));
+        }
     }
 }
 

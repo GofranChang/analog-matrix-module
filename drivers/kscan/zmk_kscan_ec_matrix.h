@@ -2,15 +2,12 @@
 
 #include "zmk_analog_matrix.h"
 
-
-int zmk_kscan_ec_matrix_calibrate(const struct device *dev, zmk_analog_matrix_calibration_cb_t cb, const void *user_data);
-
-int zmk_kscan_ec_matrix_sample(const struct device *dev,
-		uint8_t select,
-		uint8_t strobe,
-		uint16_t times,
-                                  zmk_analog_matrix_sample_cb_t callback,
+int zmk_kscan_ec_matrix_calibrate(const struct device *dev, zmk_analog_matrix_calibration_cb_t cb,
                                   const void *user_data);
+
+int zmk_kscan_ec_matrix_sample(const struct device *dev, uint8_t select, uint8_t strobe,
+                               uint16_t times, zmk_analog_matrix_sample_cb_t callback,
+                               const void *user_data);
 
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_SCAN_RATE_CALC)
 

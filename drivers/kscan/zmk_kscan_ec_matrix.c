@@ -109,7 +109,7 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, 
     timing_t set_strobe_done = timing_counter_get();
 #endif
 
-        k_busy_wait(4);
+    k_busy_wait(4);
     if (cfg->adc_read_settle_us) {
         k_busy_wait(cfg->adc_read_settle_us);
     }
@@ -178,18 +178,18 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, 
     return buf;
 }
 
-static void scan_raw_values(const struct device *dev, zmk_analog_matrix_value_cb_t cb, void *user_data) {
+static void scan_raw_values(const struct device *dev, zmk_analog_matrix_value_cb_t cb,
+                            void *user_data) {
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
     for (int sel = 0; sel < common_cfg->selects_len; sel++) {
         for (int str = 0; str < common_cfg->inputs_len; str++) {
-	    if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, true)) {
-	        continue;
-	    }
+            if (!zmk_analog_matrix_valid_sel_str(dev, sel, str, true)) {
+                continue;
+            }
 
-
-	    uint16_t raw = read_raw_matrix_state(dev, sel, str);
-	    cb(dev, sel, str, raw, user_data);
-	}
+            uint16_t raw = read_raw_matrix_state(dev, sel, str);
+            cb(dev, sel, str, raw, user_data);
+        }
     }
 }
 
@@ -233,17 +233,14 @@ int zmk_kscan_ec_matrix_calibrate(const struct device *dev,
     return 0;
 }
 
-int zmk_kscan_ec_matrix_sample(const struct device *dev,
-		uint8_t select,
-		uint8_t strobe,
-		uint16_t times,
-                                  zmk_analog_matrix_sample_cb_t callback,
-                                  const void *user_data) {
+int zmk_kscan_ec_matrix_sample(const struct device *dev, uint8_t select, uint8_t strobe,
+                               uint16_t times, zmk_analog_matrix_sample_cb_t callback,
+                               const void *user_data) {
     struct zmk_analog_matrix_common_data *common_data = dev->data;
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
 
     if (strobe >= common_cfg->inputs_len || select >= common_cfg->selects_len) {
-	    return -EINVAL;
+        return -EINVAL;
     }
 
     int ret = k_mutex_lock(&common_data->mutex, K_SECONDS(1));
@@ -264,7 +261,6 @@ int zmk_kscan_ec_matrix_sample(const struct device *dev,
 }
 
 #endif // IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_CALIBRATOR)
-
 
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
 
@@ -371,8 +367,9 @@ static int kscan_ec_matrix_init(const struct device *dev) {
         gpio_pin_configure_dt(&cfg->selects[sel], GPIO_DISCONNECTED);
     }
 
-    k_thread_create(&common_data->thread, data->thread_stack, CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_STACK_SIZE,
-                    zmk_analog_matrix_thread_main, (void *)dev, NULL, NULL,
+    k_thread_create(&common_data->thread, data->thread_stack,
+                    CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_STACK_SIZE, zmk_analog_matrix_thread_main,
+                    (void *)dev, NULL, NULL,
                     K_PRIO_COOP(CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_PRIORITY), 0, K_NO_WAIT);
 
     return 0;
@@ -416,7 +413,7 @@ static int zkem_pm_action(const struct device *dev, enum pm_device_action action
 #define ZKEM_INIT(n)                                                                               \
     PM_DEVICE_DT_INST_DEFINE(n, zkem_pm_action);                                                   \
     COND_CODE_1(DT_INST_NODE_HAS_PROP(n, pinctrl_names), (PINCTRL_DT_INST_DEFINE(n);), ())         \
-    static struct zmk_analog_matrix_calibration_entry calibration_entries_##n[ENTRIES(n)] = {    \
+    static struct zmk_analog_matrix_calibration_entry calibration_entries_##n[ENTRIES(n)] = {      \
         COND_CODE_1(DT_INST_NODE_HAS_PROP(n, precalib_avg_lows),                                   \
                     (DT_INST_FOREACH_PROP_ELEM_SEP(n, precalib_avg_lows,                           \
                                                    FOREACH_STROBE_CALIB_ENTRY, (, ))),             \
@@ -426,13 +423,14 @@ static int zkem_pm_action(const struct device *dev, enum pm_device_action action
         DT_INST_NODE_HAS_PROP(n, strobe_input_masks),                                              \
         (static const uint32_t input_select_masks_##n[] = DT_INST_PROP(n, strobe_input_masks);),   \
         ())                                                                                        \
-	static uint64_t matrix_state_##n[] = {LISTIFY(DT_INST_PROP_LEN(n, strobe_gpios), ZERO, (, ))}; \
+    static uint64_t matrix_state_##n[] = {LISTIFY(DT_INST_PROP_LEN(n, strobe_gpios), ZERO, (, ))}; \
     static struct kscan_ec_matrix_data kscan_ec_matrix_data##n = {                                 \
-	    .common = { \
-        .calibrations = calibration_entries_##n,                                                   \
-        .reported_matrix_state = reported_matrix_states_##n,                                       \
-        .matrix_state = matrix_state_##n,                  \
-	    }, \
+        .common =                                                                                  \
+            {                                                                                      \
+                .calibrations = calibration_entries_##n,                                           \
+                .reported_matrix_state = reported_matrix_states_##n,                               \
+                .matrix_state = matrix_state_##n,                                                  \
+            },                                                                                     \
     };                                                                                             \
     static const struct gpio_dt_spec selects_##n[] = {                                             \
         DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), input_gpios, ZKEM_GPIO_DT_SPEC_ELEM)};                \
@@ -440,26 +438,27 @@ static int zkem_pm_action(const struct device *dev, enum pm_device_action action
                      DT_INST_PROP(n, trigger_percentage) < 90,                                     \
                  "trigger-percentage must be between 10 and 95");                                  \
     static const struct kscan_ec_matrix_config kscan_ec_matrix_config##n = {                       \
-	    .common = { \
-        .selects_len = DT_INST_PROP_LEN(n, input_gpios),                                           \
-        .inputs_len = DT_INST_PROP_LEN(n, strobe_gpios),                                          \
-        .trigger_percentage = DT_INST_PROP_OR(n, trigger_percentage, 50),                          \
-		    .read = read_raw_matrix_state, \
-		    .scan = scan_raw_values, \
-		    .power = zmk_kscan_ec_matrix_power, \
-		    .input_resolution = zmk_kscan_ec_matrix_input_resolution, \
-        COND_CODE_1(DT_INST_NODE_HAS_PROP(n, strobe_input_masks),                                  \
-                    (.input_select_masks = input_select_masks_##n, ), ())                          \
-        .active_polling_interval_ms = DT_INST_PROP_OR(n, active_polling_interval_ms, 1),           \
-        COND_CODE_1(                                                                               \
-            IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_DYNAMIC_POLL_RATE),                              \
-            (.idle_polling_interval_ms = DT_INST_PROP_OR(n, idle_polling_interval_ms, 5),          \
-             .sleep_polling_interval_ms = DT_INST_PROP_OR(n, sleep_polling_interval_ms, 500),      \
-             .idle_after_secs = DT_INST_PROP_OR(n, idle_after_secs, 5),                            \
-             .sleep_after_secs = DT_INST_PROP_OR(n, sleep_after_secs, 300),                        \
-             .dynamic_polling_interval = DT_INST_PROP_OR(n, dynamic_polling_interval, false), ),   \
-	     ()) \
-	    }, \
+        .common = {.selects_len = DT_INST_PROP_LEN(n, input_gpios),                                \
+                   .inputs_len = DT_INST_PROP_LEN(n, strobe_gpios),                                \
+                   .trigger_percentage = DT_INST_PROP_OR(n, trigger_percentage, 50),               \
+                   .read = read_raw_matrix_state,                                                  \
+                   .scan = scan_raw_values,                                                        \
+                   .power = zmk_kscan_ec_matrix_power,                                             \
+                   .input_resolution = zmk_kscan_ec_matrix_input_resolution,                       \
+                   COND_CODE_1(DT_INST_NODE_HAS_PROP(n, strobe_input_masks),                       \
+                               (.input_select_masks = input_select_masks_##n, ), ())               \
+                       .active_polling_interval_ms =                                               \
+                       DT_INST_PROP_OR(n, active_polling_interval_ms, 1),                          \
+                   COND_CODE_1(IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_DYNAMIC_POLL_RATE),           \
+                               (.idle_polling_interval_ms =                                        \
+                                    DT_INST_PROP_OR(n, idle_polling_interval_ms, 5),               \
+                                .sleep_polling_interval_ms =                                       \
+                                    DT_INST_PROP_OR(n, sleep_polling_interval_ms, 500),            \
+                                .idle_after_secs = DT_INST_PROP_OR(n, idle_after_secs, 5),         \
+                                .sleep_after_secs = DT_INST_PROP_OR(n, sleep_after_secs, 300),     \
+                                .dynamic_polling_interval =                                        \
+                                    DT_INST_PROP_OR(n, dynamic_polling_interval, false), ),        \
+                               ())},                                                               \
         COND_CODE_1(DT_INST_NODE_HAS_PROP(n, pinctrl_names),                                       \
                     (.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(n), ), ())                             \
             .adc_channel = ADC_DT_SPEC_INST_GET(n),                                                \
@@ -467,11 +466,11 @@ static int zkem_pm_action(const struct device *dev, enum pm_device_action action
         .drain = GPIO_DT_SPEC_INST_GET_OR(n, drain_gpios, {0}),                                    \
         .strobes = {DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), strobe_gpios, ZKEM_GPIO_DT_SPEC_ELEM)},   \
         .selects = selects_##n,                                                                    \
-            .matrix_warm_up_us = DT_INST_PROP_OR(n, matrix_warm_up_us, 0),                         \
+        .matrix_warm_up_us = DT_INST_PROP_OR(n, matrix_warm_up_us, 0),                             \
         .matrix_relax_us = DT_INST_PROP_OR(n, matrix_relax_us, 0),                                 \
         .adc_read_settle_us = DT_INST_PROP_OR(n, adc_read_settle_us, 0),                           \
         .skip_startup_calibration = DT_INST_PROP_OR(n, skip_startup_calibration, false),           \
-            };                                                                                  \
+    };                                                                                             \
     DEVICE_DT_INST_DEFINE(n, kscan_ec_matrix_init, PM_DEVICE_DT_INST_GET(n),                       \
                           &kscan_ec_matrix_data##n, &kscan_ec_matrix_config##n, POST_KERNEL,       \
                           CONFIG_KSCAN_INIT_PRIORITY, &kscan_ec_matrix_api);

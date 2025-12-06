@@ -66,11 +66,11 @@ static void calibrate_cb(const struct zmk_analog_matrix_calibration_event *ev,
 }
 
 int zmk_analog_matrix_cmd_calibration_start(const struct shell *shell, size_t argc, char **argv,
-                                        void *data) {
+                                            void *data) {
     const struct device *dev = device_get_binding(argv[-2]);
     if (!dev) {
         shell_error(shell, "Failed to find device named %s", argv[-2]);
-	return -ENODEV;
+        return -ENODEV;
     }
 
     int ret = zmk_analog_matrix_calibrate(dev, &calibrate_cb, shell);
@@ -81,15 +81,13 @@ int zmk_analog_matrix_cmd_calibration_start(const struct shell *shell, size_t ar
     return ret;
 }
 
-static void sample_cb(uint16_t val,
-                         const void *user_data) {
+static void sample_cb(uint16_t val, const void *user_data) {
     const struct shell *sh = (const struct shell *)user_data;
 
     shell_print(sh, "Val: %d", val);
 }
 
-int zmk_analog_matrix_cmd_sample(const struct shell *shell, size_t argc, char **argv,
-                                         void *data) {
+int zmk_analog_matrix_cmd_sample(const struct shell *shell, size_t argc, char **argv, void *data) {
     uint8_t select;
     uint8_t input;
     uint16_t times;
@@ -97,7 +95,7 @@ int zmk_analog_matrix_cmd_sample(const struct shell *shell, size_t argc, char **
 
     if (!dev) {
         shell_error(shell, "Failed to find device named %s", argv[-1]);
-	return -ENODEV;
+        return -ENODEV;
     }
 
     input = strtol(argv[1], NULL, 10);
@@ -116,9 +114,8 @@ int zmk_analog_matrix_cmd_sample(const struct shell *shell, size_t argc, char **
 }
 #endif // IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_CALIBRATOR)
 
-static void export_cb(const struct device *dev,
-                      struct zmk_analog_matrix_calibration_entry *entries, size_t len,
-                      const void *user_data) {
+static void export_cb(const struct device *dev, struct zmk_analog_matrix_calibration_entry *entries,
+                      size_t len, const void *user_data) {
     const struct shell *shell = (const struct shell *)user_data;
 
     shell_print(shell, "\tprecalib-avg-highs = <");
@@ -134,12 +131,12 @@ static void export_cb(const struct device *dev,
 }
 
 int zmk_analog_matrix_cmd_calibration_export(const struct shell *shell, size_t argc, char **argv,
-                                         void *data) {
+                                             void *data) {
     const struct device *dev = device_get_binding(argv[-2]);
 
     if (!dev) {
         shell_error(shell, "Failed to find device named %s", argv[-2]);
-	return -ENODEV;
+        return -ENODEV;
     }
 
     int ret = zmk_analog_matrix_access_calibration(dev, &export_cb, shell);
@@ -152,12 +149,13 @@ int zmk_analog_matrix_cmd_calibration_export(const struct shell *shell, size_t a
 
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_SCAN_RATE_CALC)
 
-int zmk_analog_matrix_cmd_scan_rate(const struct shell *shell, size_t argc, char **argv, void *data) {
+int zmk_analog_matrix_cmd_scan_rate(const struct shell *shell, size_t argc, char **argv,
+                                    void *data) {
     const struct device *dev = device_get_binding(argv[-1]);
 
     if (!dev) {
         shell_error(shell, "Failed to find device named %s", argv[-1]);
-	return -ENODEV;
+        return -ENODEV;
     }
 
     uint64_t duration_ns = zmk_analog_matrix_max_scan_duration_ns(dev);
@@ -175,11 +173,11 @@ int zmk_analog_matrix_cmd_scan_rate(const struct shell *shell, size_t argc, char
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_SETTINGS)
 
 int zmk_analog_matrix_cmd_calibration_save(const struct shell *shell, size_t argc, char **argv,
-                                       void *data) {
+                                           void *data) {
     const struct device *dev = device_get_binding(argv[-2]);
     if (!dev) {
         shell_error(shell, "Failed to find device named %s", argv[-2]);
-	return -ENODEV;
+        return -ENODEV;
     }
 
     int ret = zmk_analog_matrix_settings_save_calibration(dev);
@@ -191,11 +189,11 @@ int zmk_analog_matrix_cmd_calibration_save(const struct shell *shell, size_t arg
 }
 
 int zmk_analog_matrix_cmd_calibration_load(const struct shell *shell, size_t argc, char **argv,
-                                       void *data) {
+                                           void *data) {
     const struct device *dev = device_get_binding(argv[-2]);
     if (!dev) {
         shell_error(shell, "Failed to find device named %s", argv[-2]);
-	return -ENODEV;
+        return -ENODEV;
     }
 
     int ret = zmk_analog_matrix_settings_load_calibration(dev);
