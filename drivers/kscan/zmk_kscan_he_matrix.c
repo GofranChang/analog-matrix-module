@@ -65,6 +65,32 @@ static int read_channels(const struct device *dev, uint8_t select,
     return 0;
 }
 
+static inline uint8_t input_resolution(const struct device *dev, uint8_t input) {
+    const struct kscan_he_matrix_config *cfg = dev->config;
+    if (input >= cfg->common.inputs_len) {
+        return 0;
+    }
+
+    return cfg->channels[input].resolution;
+}
+
+static uint8_t zmk_kscan_he_matrix_input_resolution(const struct device *dev, uint8_t input) {
+    return input_resolution(dev, input);
+}
+
+#if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION)
+
+static inline void invert_if_needed(const struct device *dev, uint16_t *val, uint8_t channel) {
+    struct zmk_analog_matrix_common_data *common_data = dev->data;
+    if (common_data->invert_values) {
+        uint8_t res = zmk_kscan_he_matrix_input_resolution(dev, channel);
+
+        ZMK_ANALOG_MATRIX_INVERT_VAL(val, res);
+    }
+}
+
+#endif /* IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION) */
+
 static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, uint8_t channel) {
     const struct kscan_he_matrix_config *cfg = dev->config;
     int ret;
@@ -89,6 +115,10 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, 
 
     gpio_pin_configure_dt(&cfg->selects[select], GPIO_DISCONNECTED);
 
+#if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION)
+    invert_if_needed(dev, &buf, channel);
+#endif
+
     return buf;
 }
 
@@ -96,6 +126,7 @@ static void scan_raw_values(const struct device *dev, zmk_analog_matrix_value_cb
                             void *user_data) {
     const struct zmk_analog_matrix_common_cfg *common_cfg = dev->config;
     const struct kscan_he_matrix_config *cfg = dev->config;
+
     for (int sel = 0; sel < common_cfg->selects_len; sel++) {
         uint16_t buf[common_cfg->inputs_len];
 
@@ -110,18 +141,13 @@ static void scan_raw_values(const struct device *dev, zmk_analog_matrix_value_cb
                 continue;
             }
 
+#if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION)
+            invert_if_needed(dev, &buf[str], str);
+#endif
+
             cb(dev, sel, str, buf[str], user_data);
         }
     }
-}
-
-static uint8_t zmk_kscan_he_matrix_input_resolution(const struct device *dev, uint8_t input) {
-    const struct kscan_he_matrix_config *cfg = dev->config;
-    if (input >= cfg->common.inputs_len) {
-        return 0;
-    }
-
-    return cfg->channels[input].resolution;
 }
 
 static int kscan_he_matrix_init(const struct device *dev) {

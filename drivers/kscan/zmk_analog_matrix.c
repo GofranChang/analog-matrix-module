@@ -302,17 +302,42 @@ static void calibrate(const struct device *dev) {
                     continue;
                 }
 
-                uint16_t high_threshold;
+                uint16_t required_gap;
                 if (common_cfg->high_threshold_noise_based) {
-                    high_threshold = calibration->avg_low + (common_cfg->high_threshold_noise_mult *
-                                                             MAX(calibration->noise, 1));
+                    required_gap =
+                        (common_cfg->high_threshold_noise_mult * MAX(calibration->noise, 1));
                 } else {
-                    high_threshold = calibration->avg_low +
-                                     (((1 << (common_cfg->input_resolution(dev, str) - 1)) / 4));
+                    required_gap = (((1 << (common_cfg->input_resolution(dev, str) - 1)) / 4));
                     // high_threshold = (1 << (cfg->adc_channel.resolution - 1));
                 }
 
+                uint16_t high_threshold = calibration->avg_low + required_gap;
+
                 uint16_t high_check_val = common_cfg->read(dev, sel, str);
+
+#if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION)
+                if (high_check_val < calibration->avg_low &&
+                    (calibration->avg_low - high_check_val) > required_gap) {
+                    LOG_DBG("Detected inverse polarity press during calibration. Switching polarity automatically to continue.");
+                    common_data->invert_values = !common_data->invert_values;
+
+                    // Invert the existing calibration low values
+                    for (int sel2 = 0; sel2 < common_cfg->selects_len; sel2++) {
+                        for (int str2 = 0; str2 < common_cfg->inputs_len; str2++) {
+                            if (!zmk_analog_matrix_valid_sel_str(dev, sel2, str2, false)) {
+                                continue;
+                            }
+
+                            struct zmk_analog_matrix_calibration_entry *calibration2 =
+                                zmk_analog_matrix_calibration_entry_for_sel_str(dev, sel2, str2);
+
+                            ZMK_ANALOG_MATRIX_INVERT_VAL(&calibration2->avg_low,
+                                                         common_cfg->input_resolution(dev, str2));
+                        }
+                    }
+                    continue; // Try again, now that things are inverted.
+                }
+#endif
 
                 if (high_check_val < high_threshold) {
                     continue;
@@ -552,6 +577,8 @@ int zmk_analog_matrix_init(const struct device *dev) {
 #endif // IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_DYNAMIC_POLL_RATE)
 
     k_mutex_init(&common_data->mutex);
+
+    k_busy_wait(10000);
 
     common_data->poll_interval = common_cfg->active_polling_interval_ms;
 

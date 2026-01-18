@@ -99,8 +99,21 @@ int zmk_analog_matrix_settings_load_calibration(const struct device *dev) {
 }
 
 int zmk_analog_matrix_settings_save_calibration(const struct device *dev) {
-    int ret = zmk_analog_matrix_access_calibration(dev, &save_cb, NULL);
-    return ret;
+#if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION)
+    char setting_name[MAX_SETTING_LEN];
+    snprintf(setting_name, MAX_SETTING_LEN,
+             "zmk/" CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_NAME_PREFIX "/invert/%s", dev->name);
+    struct zmk_analog_matrix_common_data *data = dev->data;
+    uint8_t invert = data->invert_values ? 1 : 0;
+    int ret = settings_save_one(setting_name, &invert, sizeof(invert));
+    if (ret != 0) {
+        LOG_WRN("Failed to save the invert setting: %d", ret);
+        return ret;
+    }
+
+#endif /* IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION) */
+
+    return zmk_analog_matrix_access_calibration(dev, &save_cb, NULL);
 }
 
 struct settings_load_state {
@@ -161,6 +174,43 @@ static void load_combined_calibrations_cb(const struct device *dev,
 static int analog_matrix_settings_set(const char *name, size_t size, settings_read_cb read_cb,
                                       void *cb_arg) {
     const char *next;
+
+#if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION)
+    if (settings_name_steq(name, "invert", &next) && next) {
+        const char *rem;
+        int name_len = settings_name_next(next, &rem);
+        if (rem) {
+            LOG_WRN("Extra string in invert settings name %s", name);
+            return -EINVAL;
+        }
+
+        char dev_name[name_len + 1];
+
+        memcpy(dev_name, next, name_len);
+        dev_name[name_len] = '\0';
+
+        const struct device *dev = device_get_binding(dev_name);
+        if (!dev) {
+            LOG_ERR("No device found for setting for %s", dev_name);
+            return -EINVAL;
+        }
+
+        uint8_t val;
+        if (size != sizeof(val)) {
+            LOG_WRN("Ignoring invert setting that's not a single byte");
+            return -EINVAL;
+        }
+
+        ssize_t ret = read_cb(cb_arg, &val, size);
+        if (ret < 0) {
+            LOG_ERR("Failed to load the settings from flash");
+            return ret;
+        }
+
+        struct zmk_analog_matrix_common_data *data = dev->data;
+        data->invert_values = val != 0;
+    }
+#endif /* IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION) */
 
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_SETTINGS_DISCRETE)
     if (settings_name_steq(name, "cal", &next) && next) {

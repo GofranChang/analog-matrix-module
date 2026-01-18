@@ -54,6 +54,9 @@ struct zmk_analog_matrix_common_data {
     struct k_mutex mutex;
     uint16_t poll_interval;
     struct zmk_analog_matrix_calibration_entry *calibrations;
+#if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_VALUE_INVERSION)
+    bool invert_values;
+#endif
     uint64_t *reported_matrix_state;
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_CALIBRATOR)
     zmk_analog_matrix_calibration_cb_t calibration_callback;
@@ -90,3 +93,5 @@ void zmk_analog_matrix_thread_main(void *arg1, void *unused1, void *unused2);
 int zmk_analog_matrix_init(const struct device *dev);
 
 uint64_t zmk_analog_matrix_max_scan_duration_ns(const struct device *dev);
+
+#define ZMK_ANALOG_MATRIX_INVERT_VAL(val, resolution) *val = (1 << resolution) - 1 - *val

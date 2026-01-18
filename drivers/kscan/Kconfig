@@ -16,6 +16,9 @@ config ZMK_ANALOG_MATRIX_VERBOSE_CALIBRATOR
 
 endif # ZMK_ANALOG_MATRIX_CALIBRATOR
 
+config ZMK_ANALOG_MATRIX_VALUE_INVERSION
+	bool
+
 config ZMK_ANALOG_MATRIX_SETTINGS
 	bool "Analog Matrix Settings Storage"
 	default y
