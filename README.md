@@ -14,11 +14,7 @@ EC support has been well tested on wired and wireless designs. More documentatio
 
 The driver assumes the standard PCB design using multiple strobe lines, and read lines all routed to a single opamp/ADC input by one or more analog muxes.
 
-#### Unsupported
-
-The previous EC support module included support for ADXL362 accelerometers for waking an EC device from deep sleep. That functionality is not yet available in this module, but is planned.
-
-An example refernce design compatible with this driver can be found at https://github.com/sporkus/le_capybara_keyboard/
+An example reference design compatible with this driver can be found at https://github.com/sporkus/le_capybara_keyboard/
 
 ## HE Support
 
