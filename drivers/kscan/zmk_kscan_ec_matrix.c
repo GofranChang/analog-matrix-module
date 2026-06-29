@@ -109,7 +109,7 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, 
     timing_t set_strobe_done = timing_counter_get();
 #endif
 
-    k_busy_wait(0);
+    k_busy_wait(4);
     if (cfg->adc_read_settle_us) {
         k_busy_wait(cfg->adc_read_settle_us);
     }

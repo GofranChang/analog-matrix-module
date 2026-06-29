@@ -38,26 +38,20 @@ static int zgm_pin_config(const struct device *dev, gpio_pin_t pin, gpio_flags_t
     } else if (flags & GPIO_INPUT) {
         data->active_pin = pin;
 
-        printk("MUX ON: ch=%u A=%d B=%d C=%d\n",
-               pin,
-               (pin & BIT(0)) != 0,
-               (pin & BIT(1)) != 0,
-               (pin & BIT(2)) != 0);
-
-        for (int i = 0; i < cfg->sel_gpios_len; i++) {
-            int val = (pin & BIT(i)) != 0 ? 1 : 0;
-
-            ret = gpio_pin_set_dt(&cfg->sel_gpios[i], val);
-            printk("  SEL[%d]=%d ret=%d\n", i, val, ret);
-
+        if (cfg->en_gpio.port) {
+            ret = gpio_pin_set_dt(&cfg->en_gpio, 0);
             if (ret < 0) {
                 return ret;
             }
         }
 
+        for (int i = 0; i < cfg->sel_gpios_len; i++) {
+            int val = (pin & BIT(i)) != 0 ? 1 : 0;
+            gpio_pin_set_dt(&cfg->sel_gpios[i], val);
+        }
+
         if (cfg->en_gpio.port) {
             ret = gpio_pin_set_dt(&cfg->en_gpio, 1);
-            printk("  EN=active ret=%d\n", ret);
         }
     } else {
         printk("MUX OFF: ch=%u\n", data->active_pin);
