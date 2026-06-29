@@ -30,21 +30,42 @@ static int zgm_pin_config(const struct device *dev, gpio_pin_t pin, gpio_flags_t
     const struct zgm_config *cfg = dev->config;
     struct zgm_data *data = dev->data;
 
+    printk("MUX cfg: pin=%u flags=0x%x\n", pin, flags);
+
     if (flags & GPIO_OUTPUT) {
+        printk("MUX unsupported GPIO_OUTPUT\n");
         return -ENOTSUP;
     } else if (flags & GPIO_INPUT) {
         data->active_pin = pin;
+
+        printk("MUX ON: ch=%u A=%d B=%d C=%d\n",
+               pin,
+               (pin & BIT(0)) != 0,
+               (pin & BIT(1)) != 0,
+               (pin & BIT(2)) != 0);
+
         for (int i = 0; i < cfg->sel_gpios_len; i++) {
             int val = (pin & BIT(i)) != 0 ? 1 : 0;
-            gpio_pin_set_dt(&cfg->sel_gpios[i], val);
+
+            ret = gpio_pin_set_dt(&cfg->sel_gpios[i], val);
+            printk("  SEL[%d]=%d ret=%d\n", i, val, ret);
+
+            if (ret < 0) {
+                return ret;
+            }
         }
 
         if (cfg->en_gpio.port) {
             ret = gpio_pin_set_dt(&cfg->en_gpio, 1);
+            printk("  EN=active ret=%d\n", ret);
         }
     } else {
+        printk("MUX OFF: ch=%u\n", data->active_pin);
+
         if (cfg->en_gpio.port) {
             ret = gpio_pin_set_dt(&cfg->en_gpio, 0);
+            printk("  EN=inactive ret=%d\n", ret);
+
             if (ret < 0) {
                 LOG_ERR("Failed to disable the en-gpio");
                 return ret;
