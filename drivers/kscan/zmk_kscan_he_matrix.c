@@ -106,6 +106,7 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, 
     ret = gpio_pin_configure_dt(&cfg->selects[select], GPIO_INPUT);
     if (ret < 0) {
         LOG_ERR("Failed to set the select pin (%d)", ret);
+        return 123;
     }
 
     ret = adc_read(cfg->channels[channel].dev, &sequence);
