@@ -37,6 +37,7 @@ static int zgm_pin_config(const struct device *dev, gpio_pin_t pin, gpio_flags_t
         return -ENOTSUP;
     } else if (flags & GPIO_INPUT) {
         data->active_pin = pin;
+        return -EIO;
 
         printk("MUX ON: ch=%u A=%d B=%d C=%d\n",
                pin,
