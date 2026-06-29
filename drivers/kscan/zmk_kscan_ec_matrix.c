@@ -74,7 +74,6 @@ static uint16_t read_raw_matrix_state(const struct device *dev, uint8_t select, 
     ret = gpio_pin_configure_dt(&cfg->selects[select], GPIO_INPUT);
     if (ret < 0) {
         LOG_ERR("Failed to set the select pin (%d)", ret);
-        return 123;
     }
 
 #if IS_ENABLED(CONFIG_ZMK_KSCAN_EC_MATRIX_READ_TIMING)
