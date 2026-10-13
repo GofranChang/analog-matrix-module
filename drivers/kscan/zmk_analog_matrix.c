@@ -511,17 +511,17 @@ static void analog_matrix_read(const struct device *dev) {
         common_data->reported_matrix_state[s] = diff;
 
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_DYNAMIC_POLL_RATE)
-        have_keys = have_keys || diff != 0;
+        // Switch to active polling on the first raw press, before debounce confirms it.
+        have_keys = have_keys || rows[s] != 0;
 #endif // IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_DYNAMIC_POLL_RATE)
     }
 
 #if IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_DYNAMIC_POLL_RATE)
-    if (have_change) {
-        if (have_keys) {
-            common_data->last_key_released_at = 0;
-        } else {
-            common_data->last_key_released_at = k_uptime_get();
-        }
+    if (have_keys) {
+        common_data->last_key_released_at = 0;
+    } else if (have_change || common_data->last_key_released_at == 0) {
+        // Also reset the idle timer when an unconfirmed raw press disappears.
+        common_data->last_key_released_at = k_uptime_get();
     }
 #endif // IS_ENABLED(CONFIG_ZMK_ANALOG_MATRIX_DYNAMIC_POLL_RATE)
 }
