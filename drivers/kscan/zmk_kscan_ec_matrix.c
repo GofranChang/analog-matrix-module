@@ -201,7 +201,13 @@ static void zmk_kscan_ec_matrix_power(const struct device *dev, bool enable) {
 
     if (enable) {
         gpio_pin_set_dt(&cfg->power, 1);
-        k_busy_wait(cfg->matrix_warm_up_us);
+        // Millisecond-scale analog settling does not need a running CPU.
+        // Keep sub-millisecond timing waits unchanged.
+        if (cfg->matrix_warm_up_us >= 1000) {
+            k_sleep(K_USEC(cfg->matrix_warm_up_us));
+        } else {
+            k_busy_wait(cfg->matrix_warm_up_us);
+        }
     } else {
         gpio_pin_set_dt(&cfg->power, 0);
     }

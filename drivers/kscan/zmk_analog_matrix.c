@@ -41,7 +41,20 @@ int zmk_analog_matrix_enable(const struct device *dev) {
 int zmk_analog_matrix_disable(const struct device *dev) {
     struct zmk_analog_matrix_common_data *common_data = dev->data;
 
+    const struct zmk_analog_matrix_common_cfg *cfg = dev->config;
+
+    // Finish any scan before suspension; never freeze it with matrix power on.
+    // If calibration holds the lock, refuse suspend so ZMK aborts poweroff.
+    int ret = k_mutex_lock(&common_data->mutex, K_SECONDS(1));
+    if (ret < 0) {
+        return ret;
+    }
+
     k_thread_suspend(&common_data->thread);
+    if (cfg->power) {
+        cfg->power(dev, false);
+    }
+    k_mutex_unlock(&common_data->mutex);
 
     return 0;
 }
