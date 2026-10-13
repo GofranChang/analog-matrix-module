@@ -37,6 +37,8 @@ struct kscan_ec_matrix_config {
     const uint16_t matrix_relax_us;
     const uint16_t adc_read_settle_us;
     const struct gpio_dt_spec *selects;
+    const struct gpio_dt_spec *power_off_gpios;
+    const uint8_t power_off_gpios_len;
     const struct gpio_dt_spec strobes[];
 };
 
@@ -209,6 +211,12 @@ static void zmk_kscan_ec_matrix_power(const struct device *dev, bool enable) {
             k_busy_wait(cfg->matrix_warm_up_us);
         }
     } else {
+        // Park control inputs before removing their IC supply. A logic-high
+        // input can otherwise back-power a gated mux through its clamp diode.
+        for (int i = 0; i < cfg->power_off_gpios_len; i++) {
+            const struct gpio_dt_spec *gpio = &cfg->power_off_gpios[i];
+            gpio_pin_set_raw(gpio->port, gpio->pin, 0);
+        }
         gpio_pin_set_dt(&cfg->power, 0);
     }
 }
@@ -373,6 +381,18 @@ static int kscan_ec_matrix_init(const struct device *dev) {
         gpio_pin_configure_dt(&cfg->selects[sel], GPIO_DISCONNECTED);
     }
 
+    for (int i = 0; i < cfg->power_off_gpios_len; i++) {
+        const struct gpio_dt_spec *gpio = &cfg->power_off_gpios[i];
+        if (!device_is_ready(gpio->port)) {
+            return -ENODEV;
+        }
+        // Physical low regardless of the device's enable polarity.
+        err = gpio_pin_configure_dt(gpio, GPIO_OUTPUT_LOW);
+        if (err < 0) {
+            return err;
+        }
+    }
+
     k_thread_create(&common_data->thread, data->thread_stack,
                     CONFIG_ZMK_KSCAN_EC_MATRIX_THREAD_STACK_SIZE, zmk_analog_matrix_thread_main,
                     (void *)dev, NULL, NULL,
@@ -440,6 +460,10 @@ static int zkem_pm_action(const struct device *dev, enum pm_device_action action
     };                                                                                             \
     static const struct gpio_dt_spec selects_##n[] = {                                             \
         DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), input_gpios, ZKEM_GPIO_DT_SPEC_ELEM)};                \
+    COND_CODE_1(DT_INST_NODE_HAS_PROP(n, power_off_gpios),                                      \
+        (static const struct gpio_dt_spec power_off_gpios_##n[] = {                             \
+            DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), power_off_gpios, ZKEM_GPIO_DT_SPEC_ELEM)};),  \
+        ())                                                                                    \
     BUILD_ASSERT(DT_INST_PROP(n, trigger_percentage) > 10 &&                                       \
                      DT_INST_PROP(n, trigger_percentage) < 90,                                     \
                  "trigger-percentage must be between 10 and 95");                                  \
@@ -471,6 +495,9 @@ static int zkem_pm_action(const struct device *dev, enum pm_device_action action
         .power = GPIO_DT_SPEC_INST_GET_OR(n, power_gpios, {0}),                                    \
         .drain = GPIO_DT_SPEC_INST_GET_OR(n, drain_gpios, {0}),                                    \
         .strobes = {DT_FOREACH_PROP_ELEM(DT_DRV_INST(n), strobe_gpios, ZKEM_GPIO_DT_SPEC_ELEM)},   \
+        COND_CODE_1(DT_INST_NODE_HAS_PROP(n, power_off_gpios),                                  \
+            (.power_off_gpios = power_off_gpios_##n,                                            \
+             .power_off_gpios_len = DT_INST_PROP_LEN(n, power_off_gpios),), ())                 \
         .selects = selects_##n,                                                                    \
         .matrix_warm_up_us = DT_INST_PROP_OR(n, matrix_warm_up_us, 0),                             \
         .matrix_relax_us = DT_INST_PROP_OR(n, matrix_relax_us, 0),                                 \

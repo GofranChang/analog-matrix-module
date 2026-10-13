@@ -18,6 +18,16 @@ properties:
     type: int
   power-gpios:
     type: phandle-array
+  power-off-gpios:
+    type: phandle-array
+    description: |
+      Control GPIOs connected to the power-gated matrix circuitry. Drive these
+      physically low before turning power-gpios off to avoid input-clamp
+      back-powering. Only use pins for which physical low is safe while the
+      matrix is powered down. The configured active polarity is ignored when
+      parking these pins; use the same active polarity as the pin's existing
+      controller so GPIO configuration does not change its logical behavior.
+      Normal scan-time control remains with the mux driver.
   input-gpios:
     type: phandle-array
     required: true
